@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from collections import defaultdict
 
 from .context import assemble
@@ -31,12 +30,36 @@ def retrieve(index, embedder, query: str, filters: dict, top_k: int = 8,
     """Run hybrid search, fusion, reranking, neighbour expansion and assembly."""
     queries = subqueries or [query]
     lists: list[list[Retrieved]] = []
+    query_result_scores: list[dict[str, float]] = []
     with Span("search") as search_span:
         for subquery in queries:
             vector = embedder.embed([subquery])[0]
             text_results = index.search(subquery, None, filters, candidate_k)
             vector_results = index.search("", vector, filters, candidate_k)
             lists.extend((text_results, vector_results))
+            query_result_scores.append({
+                item.chunk_id: max(
+                    score for score in (
+                        next(
+                            (
+                                result.score
+                                for result in text_results
+                                if result.chunk_id == item.chunk_id
+                            ),
+                            0.0,
+                        ),
+                        next(
+                            (
+                                result.score
+                                for result in vector_results
+                                if result.chunk_id == item.chunk_id
+                            ),
+                            0.0,
+                        ),
+                    )
+                )
+                for item in (*text_results, *vector_results)
+            })
     if timings is not None:
         timings["search"] = search_span.elapsed_ms
     fused = reciprocal_rank_fusion(lists)
@@ -49,34 +72,28 @@ def retrieve(index, embedder, query: str, filters: dict, top_k: int = 8,
         timings["rerank"] = rerank_span.elapsed_ms
     if len(queries) > 1:
         required: list[Retrieved] = []
-        for subquery in queries:
-            terms = {
-                term for term in re.findall(r"[a-z0-9]+", subquery.lower())
-                if len(term) >= 3
-            }
-            match = next(
-                (
-                    item for item in ranked
-                    if any(
-                        query_term in metadata_term
-                        for query_term in terms
-                        for metadata_term in re.findall(
-                            r"[a-z0-9]+",
-                            f"{item.filename} {item.chunk.doc_title}".lower(),
-                        )
-                    )
-                ),
-                None,
-            )
-            if match is not None and match.chunk_id not in {
-                item.chunk_id for item in required
-            }:
-                required.append(match)
+        for result_scores in query_result_scores:
+            for best_id in sorted(
+                result_scores, key=result_scores.get, reverse=True
+            )[:2]:
+                match = next(
+                    (
+                        item for item in ranked
+                        if item.chunk_id == best_id
+                    ),
+                    None,
+                )
+                if match is not None and match.chunk_id not in {
+                    item.chunk_id for item in required
+                }:
+                    required.append(match)
         if required:
             required_ids = {item.chunk_id for item in required}
             ranked = required + [
                 item for item in ranked if item.chunk_id not in required_ids
             ]
+    else:
+        required = []
     if neighbour_expansion and hasattr(index, "chunks"):
         selected = {item.chunk_id for item in ranked[:top_k]}
         expanded = list(ranked)
@@ -91,5 +108,12 @@ def retrieve(index, embedder, query: str, filters: dict, top_k: int = 8,
                 if same_section:
                     expanded.append(Retrieved(neighbour, item.score * 0.98))
                     selected.add(neighbour.chunk_id)
-        ranked = sorted(expanded, key=lambda x: (-x.score, x.chunk_id))
+        expanded = sorted(expanded, key=lambda x: (-x.score, x.chunk_id))
+        if required:
+            required_ids = {item.chunk_id for item in required}
+            ranked = required + [
+                item for item in expanded if item.chunk_id not in required_ids
+            ]
+        else:
+            ranked = expanded
     return assemble(ranked, token_budget, per_document_cap)[:top_k]

@@ -65,7 +65,7 @@ def _condense(question: str, history: list[ChatTurn], entities: dict[str, str]) 
                 flags=re.I,
             )
         return f"{previous.rstrip('?')} for the {current_slots['plan']} tier?"
-    topic = _subject(previous)
+    topic = _subject(previous) or entities.get("topic", "")
     if topic:
         if re.match(r"^(?:what|how)\s+about\b", question, re.I):
             tail = re.sub(r"^(?:what|how)\s+about\b", "", question, flags=re.I).strip()
@@ -89,6 +89,23 @@ def _condense(question: str, history: list[ChatTurn], entities: dict[str, str]) 
 
 def decompose(question: str, known_entities: list[str] | None = None) -> list[str]:
     if not _COMPARISON.search(question):
+        add_on = re.search(
+            r"\s+with\s+(?:the\s+)?(.+?\b(?:add[- ]on|module))\b",
+            question.rstrip("?"),
+            re.I,
+        )
+        if add_on:
+            base = re.sub(
+                r"\b(?:what|is|the|total|monthly|per-seat|cost|in|for)\b",
+                " ",
+                question[:add_on.start()],
+                flags=re.I,
+            )
+            base = re.sub(r"\s+", " ", base).strip(" ,?")
+            if re.search(r"\b(?:cost|price|rate)\b", question, re.I):
+                base = f"{base} price"
+            addon = add_on.group(1).strip()
+            return [base, addon]
         return [question]
     normalized = re.sub(r"\s+", " ", question).strip().rstrip("?")
     match = re.search(r"\b(?:versus|vs\.?|difference between)\b", normalized, re.I)

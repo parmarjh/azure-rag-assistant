@@ -27,14 +27,40 @@ def _sentences(text: str) -> list[str]:
     return [x.strip() for x in re.split(r"(?<=[.!?])\s+", text) if x.strip()]
 
 
+def _has_value(text: str) -> bool:
+    return bool(re.search(
+        r"\$?\d[\d,]*(?:\.\d+)?%?|\b(?:one|two|three|four|five|six|seven|"
+        r"eight|nine|ten)\b", text, re.I
+    ))
+
+
 def _units(text: str) -> list[str]:
-    units = []
+    units: list[str] = []
+    prose: list[str] = []
+    table_header = ""
     columns: list[str] = []
+
+    def flush_prose() -> None:
+        if prose:
+            units.extend(_sentences(" ".join(prose)))
+            prose.clear()
+
     for line in text.splitlines():
         line = line.strip()
         if not line:
             continue
+        if "|" in line:
+            flush_prose()
+            if not table_header:
+                table_header = line
+                units.append(line)
+            else:
+                units.append(f"{table_header} | {line}")
+                if not _has_value(line):
+                    table_header = line
+            continue
         if line.startswith("Feature "):
+            flush_prose()
             columns = re.sub(r"\bEnterprise Plus\b", "Enterprise_Plus", line).split()
         elif columns and line.startswith("API access "):
             values = re.findall(
@@ -47,10 +73,8 @@ def _units(text: str) -> list[str]:
                     for column, value in zip(columns[1:], values)
                 )
                 continue
-        if "|" in line:
-            units.append(line)
-        else:
-            units.extend(_sentences(line))
+        prose.append(line)
+    flush_prose()
     return units
 
 
@@ -58,21 +82,46 @@ def _answerable_unit(unit: str) -> bool:
     normalized = unit.casefold()
     return not (
         normalized.startswith("sheet:")
-        or normalized.startswith((
-            "tier price", "feature starter", "category standard limit",
-            "expense amount required approver", "required approver",
-        ))
         or "sales operations" in normalized
         or re.fullmatch(r"[\s|:–—-]+", unit)
     )
 
 
+def _pointer_unit(unit: str) -> bool:
+    normalized = unit.casefold().strip()
+    return (
+        not _has_value(unit)
+        and (
+            normalized.endswith(":")
+            or re.search(
+                r"\b(?:replaces?|see|refer(?:s)? to|listed in|defined in)\b",
+                normalized,
+            )
+            or re.search(
+                r"\b(?:following|below|as follows)\b", normalized
+            )
+        )
+    )
+
+
 def _word_forms(text: str) -> set[str]:
-    words = re.findall(r"[a-z0-9$%]+", text.lower())
+    raw_words = re.findall(r"[A-Za-z0-9$%]+", text)
+    words = [word.lower() for word in raw_words]
+    words.extend(
+        part.lower()
+        for word in raw_words
+        for part in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)|\d+", word)
+        if part.lower() != word.lower()
+    )
     stems = {
         word[:-1] for word in words
         if len(word) > 4 and word.endswith("s")
     }
+    for word in words:
+        for suffix in ("ation", "able", "ible", "ment", "ing", "ed", "al"):
+            if len(word) > len(suffix) + 3 and word.endswith(suffix):
+                stems.add(word[:-len(suffix)])
+                break
     number_words = {
         "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
         "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
@@ -87,62 +136,43 @@ def _word_forms(text: str) -> set[str]:
 
 
 def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
-    if re.search(
-        r"\b(?:tier|seats?)\s*\d+\b|\b\d+\s*[- ]?\s*seats?\b",
-        focus,
-        re.I,
-    ):
-        return items
-    raw_focus = re.findall(r"[a-z0-9]+", focus.lower())
-    explicit: list[tuple[int, Retrieved]] = []
-    for item in items:
-        metadata = re.findall(
-            r"[a-z0-9]+",
-            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title} "
-            f"{item.section_path}".lower(),
-        )
-        for term in metadata:
-            for query_term in raw_focus:
-                if (
-                    len(query_term) >= 3
-                    and query_term not in _GENERATION_STOP_WORDS
-                    and query_term not in _GENERIC_METADATA_TERMS
-                    and query_term in term
-                ):
-                    explicit.append((focus.lower().rfind(query_term), item))
-    if explicit:
-        position = max(value[0] for value in explicit)
-        selected = []
-        seen = set()
-        for item_position, item in explicit:
-            if item_position == position and item.chunk_id not in seen:
-                selected.append(item)
-                seen.add(item.chunk_id)
-        selected_docs = {item.doc_id for item in selected}
-        return [item for item in items if item.doc_id in selected_docs]
+    stop = _GENERATION_STOP_WORDS | _GENERIC_METADATA_TERMS
     focus_terms = {
-        term[:5] for term in _word_forms(focus)
-        if len(term) >= 4 and term not in _GENERATION_STOP_WORDS
+        term for term in _word_forms(focus)
+        if len(term) >= 4 and term not in stop
     }
+    named_terms = {
+        term.casefold()
+        for term in re.findall(r"\b[A-Z][A-Za-z0-9-]*\b", focus)
+        if len(term) >= 3 and term.casefold() not in _GENERATION_STOP_WORDS
+    }
+    if named_terms:
+        entity_scores = [
+            (
+                len(named_terms & _word_forms(
+                    f"{item.filename} {item.chunk.doc_title}"
+                )),
+                item,
+            )
+            for item in items
+        ]
+        best_entity = max((score for score, _ in entity_scores), default=0)
+        if best_entity:
+            items = [
+                item for score, item in entity_scores if score == best_entity
+            ]
     scored = []
-    strong_matches = []
     for item in items:
-        strong_metadata = set(re.findall(
-            r"[a-z0-9]+",
-            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title}".lower(),
-        ))
-        strong_metadata -= {"template", "agreement", "mutual", "rate", "card", "policy"}
-        if set(raw_focus) & {term for term in strong_metadata if len(term) >= 3}:
-            strong_matches.append(item)
-        metadata = _word_forms(
-            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title} {item.section_path}"
+        searchable = _word_forms(
+            f"{item.filename} {item.chunk.doc_title} {item.section_path} "
+            f"{body_text(item)}"
         )
-        distinctive = {term[:5] for term in metadata if len(term) >= 4}
-        scored.append((len(focus_terms & distinctive), item))
-    if strong_matches:
-        return strong_matches
-    best = max((score for score, _ in scored), default=0)
-    return [item for score, item in scored if score == best] if best else items
+        lexical = len(focus_terms & searchable)
+        scored.append((lexical, item.score, item))
+    best = max((lexical for lexical, _, _ in scored), default=0)
+    if not best:
+        return items
+    return [item for lexical, _, item in scored if lexical > 0]
 
 
 def _candidate_score(
@@ -157,8 +187,8 @@ def _candidate_score(
         "agreement", "expense", "nda", "policy", "service", "travel", "vendor",
     }
     query_terms = [
-        term for term in re.findall(r"[a-z0-9$%]+", question.lower())
-        if term not in stop
+        term for term in _word_forms(question)
+        if term not in stop and len(term) >= 3
     ]
     unit_terms = _word_forms(unit)
     weighted_total = sum(idf.get(term, 1.0) for term in set(query_terms))
@@ -177,12 +207,16 @@ def _candidate_score(
         for term in set(query_terms)
         if term in metadata_terms
     ) / max(weighted_total, 1.0)
+    section_terms = _word_forms(item.section_path)
+    section_bonus = 0.35 if set(query_terms) & section_terms else 0.0
     entity_terms = {
         term.casefold()
         for term in re.findall(r"\b[A-Z][A-Za-z0-9-]*\b", question)
         if term.casefold() not in _GENERATION_STOP_WORDS
     }
     entity_match = 0.55 if entity_terms & unit_terms else 0.0
+    if entity_terms & metadata_terms:
+        entity_match += 0.80
     asks_value = bool(re.search(
         r"\b(how much|how many|what price|what cost|cost|price|cap|limit|"
         r"percentage|when|rate)\b", question, re.I
@@ -194,28 +228,133 @@ def _candidate_score(
         re.I,
     ))
     answer_bonus = 0.30 if asks_value and has_answer_type else 0.0
+    shape_bonus = 0.0
+    superlative = re.search(
+        r"\b(?:maximum|minimum|up to|at least|at most|no more than)\b",
+        question,
+        re.I,
+    )
+    if superlative:
+        upper_bound = bool(re.search(
+            r"\b(?:maximum|up to|at most|no more than)\b",
+            question,
+            re.I,
+        ))
+        bound_pattern = (
+            r"\b(?:maximum|up to|at most|no more than|cap|limit)\b"
+            if upper_bound
+            else r"\b(?:minimum|at least|no fewer than)\b"
+        )
+        shape_bonus = 1.00 if re.search(
+            bound_pattern,
+            unit,
+            re.I,
+        ) else -0.20
+        if re.search(r"\d+(?:\.\d+)?%", unit):
+            shape_bonus += 0.30
+    elif re.search(
+        r"\b(?:how much|price|cost|rate|amount|cap|limit)\b",
+        question,
+        re.I,
+    ):
+        shape_bonus = 0.80 if re.search(r"\$\s?\d", unit) else -0.35
+    elif re.search(r"\b(?:how many|minimum length|maximum length)\b", question, re.I):
+        shape_bonus = 0.80 if re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:characters?|days?|weeks?|months?|years?|%)\b",
+            unit,
+            re.I,
+        ) else -0.25
+    elif re.search(r"\b(?:how long|survival period|notice)\b", question, re.I):
+        shape_bonus = 0.80 if re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:days?|weeks?|months?|years?)\b|"
+            r"\bindefinitely\b",
+            unit,
+            re.I,
+        ) else -0.25
+    elif re.search(r"\b(?:payment terms?|payable)\b", question, re.I):
+        shape_bonus = 0.55 if re.search(
+            r"\b\d+(?:\.\d+)?\s*(?:days?|months?|years?)\b|"
+            r"\d+(?:\.\d+)?%",
+            unit,
+            re.I,
+        ) else -0.20
+    elif re.search(r"\bexceptions?\b", question, re.I):
+        shape_bonus = 0.60 if re.search(r"\bexceptions?\b", unit, re.I) else -0.15
+    elif re.search(r"\b(?:who|which role)\b", question, re.I):
+        shape_bonus = 0.45 if re.search(
+            r"\b(?:manager|director|department|vp|finance|officer|ciso|"
+            r"administrator|owner|team)\b",
+            unit,
+            re.I,
+        ) else 0.0
+    pointer_penalty = -1.0 if _pointer_unit(unit) else 0.0
+    table_values = re.findall(r"\$?\d[\d,]*(?:\.\d+)?%?", unit)
+    header_context = re.split(
+        r"\$?\d[\d,]*(?:\.\d+)?%?|"
+        r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b",
+        unit,
+        maxsplit=1,
+        flags=re.I,
+    )[0]
+    table_bonus = 0.0
+    if asks_value and ("|" in unit or len(table_values) >= 2):
+        if set(query_terms) & _word_forms(header_context):
+            table_bonus = 0.80
     query_numbers = [
         int(value.replace(",", ""))
         for value in re.findall(r"\b\d[\d,]*\b", question)
     ]
+    number_words = {
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    }
+    query_numbers.extend(
+        number_words[word]
+        for word in re.findall(
+            r"\b(?:one|two|three|four|five|six|seven|eight|nine|ten)\b",
+            question.lower(),
+        )
+    )
     numeric_match = 0.0
     range_match = 0.0
     for number in query_numbers:
         if re.search(rf"\b{number:,}\b|\b{number}\b", unit):
             numeric_match = max(numeric_match, 0.55)
-        for low, high in re.findall(r"(\d+)\s*[–-]\s*(\d+)", unit):
-            if int(low) <= number <= int(high):
+        for low, high in re.findall(r"\$?([\d,]+)\s*[–-]\s*\$?([\d,]+)", unit):
+            if int(low.replace(",", "")) <= number <= int(high.replace(",", "")):
                 numeric_match = max(numeric_match, 0.55)
-                range_match = max(range_match, 0.90)
+                range_match = max(range_match, 1.20)
+        for boundary in re.findall(r"(?:more than|over)\s+(\d+)", unit, re.I):
+            if number > int(boundary):
+                range_match = max(range_match, 1.20)
+        for boundary in re.findall(r"(\d+)\s+days?\s+or\s+fewer", unit, re.I):
+            if number <= int(boundary):
+                range_match = max(range_match, 1.20)
     return (
         overlap
         + metadata_match * 0.45
+        + section_bonus
         + entity_match
         + answer_bonus
+        + shape_bonus
+        + table_bonus
+        + pointer_penalty
         + numeric_match
         + range_match
         + item.score * 0.20
     )
+
+
+def _question_parts(question: str) -> list[str]:
+    parts = [
+        part.strip(" ,")
+        for part in re.split(
+            r"\s+(?:and|plus)\s+|\s*\+\s*|\s+with\s+(?:the\s+)?",
+            question,
+            flags=re.I,
+        )
+    ]
+    return [part for part in parts if len(part.split()) >= 2]
 
 
 def _usage(question: str, context: list[Retrieved], text: str,
@@ -265,56 +404,15 @@ def _local_generate(
         candidates.sort(key=lambda x: (-x[0], x[2].chunk_id, x[1]))
         if candidates:
             chosen = candidates[:1]
-            if len(focus_queries or []) > 1 and re.search(
-                r"\b(?:deadline|receipt|threshold)\b", focus, re.I
-            ):
-                for keyword in ("calendar days", "receipt", "deadline"):
-                    match = next(
-                        (
-                            candidate for candidate in candidates
-                            if keyword in candidate[1].casefold()
-                            and candidate not in chosen
-                        ),
-                        None,
-                    )
-                    if match is not None:
-                        chosen.append(match)
-            if len(focus_queries or []) <= 1 and re.search(
-                r"\b(?:and|combined|approve|approval|who)\b", focus, re.I
-            ):
-                chosen = candidates[:2]
-                keywords = ("annual", "prepaid", "volume", "combined", "approver", "approval")
-                for keyword in keywords:
-                    matches = [
-                        candidate for candidate in candidates
-                        if keyword in candidate[1].casefold()
-                        and candidate not in chosen
-                    ]
-                    if keyword == "approver":
-                        matches.sort(
-                            key=lambda candidate: not bool(
-                                re.search(r"\d+\s*[%–-].*\d+", candidate[1])
-                            )
-                        )
-                    match = next(
-                        iter(matches),
-                        None,
-                    )
-                    if match is not None:
-                        if keyword == "approver" and len(chosen) >= 5:
-                            chosen[-1] = match
-                        else:
-                            chosen.append(match)
-                approval_row = next(
-                    (
-                        candidate for candidate in candidates
-                        if "chief revenue officer" in candidate[1].casefold()
-                        and re.search(r"\d+\s*[%–-].*\d+", candidate[1])
+            for part in _question_parts(focus):
+                part_match = max(
+                    candidates,
+                    key=lambda candidate: _candidate_score(
+                        part, candidate[1], candidate[2], unit_idf
                     ),
-                    None,
                 )
-                if approval_row is not None and approval_row not in chosen:
-                    chosen = chosen[:4] + [approval_row]
+                if part_match not in chosen:
+                    chosen.append(part_match)
             selected.extend((candidate[1], candidate[2]) for candidate in chosen)
     if not selected:
         selected = [

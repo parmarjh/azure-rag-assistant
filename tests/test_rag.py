@@ -207,6 +207,39 @@ def test_answerable_sufficiency_regressions():
         )
 
 
+def test_answer_unit_selection_regressions():
+    pipeline = RagPipeline.from_config(get_config())
+    pipeline.ingest(str(KB))
+    cases = (
+        ("What is the minimum password length for company accounts?", "12 characters"),
+        ("What is the domestic per-diem rate for dinner?", "$45"),
+        ("What was the Enterprise tier price in 2025?", "$99"),
+        (
+            "How much notice do I need to give for a five-day PTO request?",
+            "15 business days",
+        ),
+    )
+    for question, expected in cases:
+        answer = pipeline.answer(question)
+        assert not answer.abstained, question
+        assert expected in answer.text, (question, answer.text)
+
+    session = "selection-follow-up"
+    pipeline.answer("How many paid sick days do we get each year?", session_id=session)
+    follow_up = pipeline.answer("Do they carry over to next year?", session_id=session)
+    assert not follow_up.abstained
+    assert "carry over" in follow_up.text.lower()
+    assert "sick" in follow_up.rewritten_query.lower()
+
+    combined = pipeline.answer(
+        "What is the total monthly per-seat cost in 2026 for the Enterprise tier "
+        "with the Advanced Analytics add-on?"
+    )
+    assert not combined.abstained
+    assert "$109" in combined.text
+    assert "$14" in combined.text
+
+
 def test_sufficiency_negatives_and_comparison_gate():
     pipeline = RagPipeline.from_config(get_config())
     pipeline.ingest(str(KB))
