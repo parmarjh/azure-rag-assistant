@@ -12,14 +12,16 @@ class LocalSearchIndex:
         self.embedder, self.chunks = embedder, []
         self._idf: dict[str, float] = {}
         self._doc_terms: list[Counter[str]] = []
+        self._positions: dict[str, int] = {}
         self._avgdl = 0.0
 
     def create(self):
         self.chunks = []
-        self._idf, self._doc_terms, self._avgdl = {}, [], 0.0
+        self._idf, self._doc_terms, self._positions, self._avgdl = {}, [], {}, 0.0
 
     def upload(self, chunks):
         self.chunks.extend(chunks)
+        self._positions = {chunk.chunk_id: i for i, chunk in enumerate(self.chunks)}
         self._doc_terms = [Counter(self._terms(c.content)) for c in self.chunks]
         document_frequency = Counter()
         for terms in self._doc_terms:
@@ -51,6 +53,18 @@ class LocalSearchIndex:
                 1 - 0.75 + 0.75 * length / max(1.0, self._avgdl))
             score += self._idf.get(term, 0.0) * numerator / denominator
         return score
+
+    def bm25_score(self, query: str, chunk: Chunk) -> float:
+        index = self._positions.get(chunk.chunk_id)
+        return self._bm25(query, index) if index is not None else 0.0
+
+    def idf(self, term: str) -> float:
+        return self._idf.get(term.lower(), 0.0)
+
+    def vector_score(self, vector: list[float], chunk: Chunk) -> float:
+        if not vector or not chunk.embedding:
+            return 0.0
+        return sum(a * b for a, b in zip(vector, chunk.embedding))
 
     def _allowed(self, c: Chunk, filters: dict) -> bool:
         if filters.get("is_current") and not c.is_current:

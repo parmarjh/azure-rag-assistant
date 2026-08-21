@@ -28,6 +28,7 @@ class RagConfig:
     neighbour_expansion: bool = True
     rerank_threshold: float = 0.10
     abstain_threshold: float = 0.19
+    evidence_pair_fraction: float = 0.50
     enable_guardrails: bool = True
     enable_clarification: bool = True
     context_token_budget: int = 3000
@@ -46,6 +47,7 @@ BASELINE_CONFIG = RagConfig(
     use_hybrid=False, use_rerank=False, use_query_rewrite=False,
     use_subquery_decomposition=False, filter_current_only=False, per_doc_cap=99,
     neighbour_expansion=False, rerank_threshold=0.0, abstain_threshold=0.0,
+    evidence_pair_fraction=0.0,
     enable_guardrails=False, enable_clarification=False, context_token_budget=5000,
 )
 IMPROVED_CONFIG = RagConfig()
@@ -65,6 +67,8 @@ def get_config(mode: str = "improved") -> RagConfig:
                             "RAG_ABSTAIN_THRESHOLD", base.abstain_threshold)),
                         "rerank_threshold": float(os.getenv(
                             "RAG_RERANK_THRESHOLD", base.rerank_threshold)),
+                        "evidence_pair_fraction": float(os.getenv(
+                            "RAG_EVIDENCE_PAIR_FRACTION", base.evidence_pair_fraction)),
                         "context_token_budget": int(os.getenv(
                             "RAG_CONTEXT_TOKEN_BUDGET", base.context_token_budget)),
                         "prompt_cost_per_1k": float(os.getenv(

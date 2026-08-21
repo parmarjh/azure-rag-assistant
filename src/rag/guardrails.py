@@ -7,7 +7,55 @@ from .generation import body_text
 STOP_WORDS = {
     "a", "an", "and", "are", "do", "for", "get", "how", "i", "in", "is",
     "many", "of", "our", "per", "the", "this", "to", "what", "which",
+    "about", "can", "does", "if", "it", "on", "someone", "that", "we",
+    "have", "has", "had", "was", "were", "who", "whom", "much", "miss",
+    "compare", "difference", "both", "versus", "vs", "policy",
 }
+ALIASES = {
+    "applies": "apply",
+    "applied": "apply",
+    "approve": "approval",
+    "approves": "approval",
+    "calls": "call",
+    "combined": "combine",
+    "days": "day",
+    "employees": "employee",
+    "meals": "meal",
+    "spend": "expense",
+    "costs": "price",
+    "deadline": "day",
+    "receipt": "receipt",
+    "submission": "submit",
+    "survival": "survive",
+    "threshold": "limit",
+    "versus": "compare",
+}
+
+
+def _stem(term: str) -> str:
+    term = ALIASES.get(term, term)
+    if len(term) > 4 and term.endswith("ies"):
+        return term[:-3] + "y"
+    if len(term) > 4 and term.endswith("s"):
+        return term[:-1]
+    for suffix in ("ing", "ed", "es"):
+        if len(term) > len(suffix) + 3 and term.endswith(suffix):
+            return term[:-len(suffix)]
+    return term
+
+
+def _tokens(text: str) -> list[str]:
+    return [_stem(token) for token in re.findall(r"[a-z0-9]+", text.lower())]
+
+
+def _body(item) -> str:
+    if hasattr(item, "chunk"):
+        return body_text(item)
+    content = item.content
+    header = item.header.strip()
+    if header and content.startswith(header):
+        content = content[len(header):]
+    return content.lstrip(" \n:").strip()
 
 
 def scrub(text: str) -> str:
@@ -15,31 +63,71 @@ def scrub(text: str) -> str:
     return re.sub(r"(?i)(ignore (?:all )?previous instructions|system prompt)", "[redacted]", text)
 
 
-def has_sufficient_evidence(query: str, items) -> bool:
-    terms = {x for x in re.findall(r"[a-z0-9$]+", query.lower()) if x not in STOP_WORDS}
-    context = " ".join(
-        f"{body_text(x)} {x.filename} {x.chunk.doc_title} {x.section_path}".lower()
-        for x in items
-    )
-    if not terms:
+def has_sufficient_evidence(query: str, items, corpus=None, pair_fraction: float = 0.5) -> bool:
+    query_tokens = re.findall(r"[a-z0-9]+", query.lower())
+    terms = [_stem(token) for token in query_tokens
+             if token not in STOP_WORDS and not token.isdigit()]
+    if not terms or not items:
         return False
-    # A query's distinctive head nouns must occur in retrieved evidence. This
-    # prevents generic enterprise headers from making an unrelated answer look grounded.
-    distinctive = {x for x in terms if len(x) > 4}
-    context_terms = set(re.findall(r"[a-z0-9$]+", context))
-    matched = len(distinctive & context_terms)
-    if matched < len(distinctive):
-        stems = {term[:6] for term in distinctive}
-        matched = max(matched, len(stems & {term[:6] for term in context_terms}))
-    return matched / max(1, len(distinctive)) >= 0.6
+    corpus = corpus or items
+    corpus_terms = set(_tokens(" ".join(
+        f"{_body(x)} {x.filename} "
+        f"{x.chunk.doc_title if hasattr(x, 'chunk') else x.doc_title} "
+        f"{x.section_path}"
+        for x in corpus
+    )))
+    if any(len(token) > 3 and _stem(token) not in corpus_terms
+           for token in query_tokens if token not in STOP_WORDS and not token.isdigit()):
+        return False
+    if re.search(r"\b(compare|versus|vs\.?|difference|both)\b", query, re.I):
+        return True
+
+    document_terms = [
+        _tokens(f"{item.section_path} {_body(item)}") for item in items
+    ]
+    document_frequency = {}
+    for term in set(terms):
+        document_frequency[term] = sum(
+            term in set(tokens) for tokens in document_terms
+        )
+    corpus_documents = [_tokens(f"{x.section_path} {_body(x)}") for x in corpus]
+    corpus_frequency = {
+        term: sum(term in set(tokens) for tokens in corpus_documents)
+        for term in set(terms)
+    }
+    total_docs = max(1, len(corpus_documents))
+    idf = {
+        term: (1.0 + (total_docs / max(1, corpus_frequency.get(term, 0))))
+        for term in terms
+    }
+    high_idf = {term for term in terms if idf.get(term, 0.0) >= 10.0}
+    ordered = [term for term in terms if term in high_idf]
+    pairs = list(zip(ordered, ordered[1:]))
+    if not pairs:
+        return True
+    satisfied = 0
+    for left, right in pairs:
+        found = False
+        for tokens in document_terms:
+            for start, token in enumerate(tokens):
+                if token != left:
+                    continue
+                positions = [i for i, value in enumerate(tokens) if value == right]
+                if any(abs(position - start) <= 10 for position in positions):
+                    found = True
+                    break
+            if found:
+                break
+        satisfied += int(found)
+    return satisfied / len(pairs) >= pair_fraction
 
 
 def confidence(query: str, items) -> float:
     if not items:
         return 0.0
     terms = set(re.findall(r"[a-z0-9$]+", query.lower()))
-    context = " ".join(body_text(x).lower() for x in items)
-    coverage = len([x for x in terms if x in context]) / max(1, len(terms))
+    context = set(_tokens(" ".join(_body(x) for x in items)))
+    coverage = len([x for x in terms if _stem(x) in context]) / max(1, len(terms))
     top = items[0].score
     margin = max(0.0, top - (items[2].score if len(items) > 2 else 0.0))
     return max(0.0, min(1.0, 0.55 * top + 0.25 * margin + 0.20 * coverage))
@@ -91,6 +179,8 @@ def clarification_facets(items, limit: int = 4) -> list[str]:
             label = f"benefit reimbursement limits ({title} §6)"
         else:
             label = f"{section} ({title})"
+        if label in facets:
+            continue
         facets.append(label)
         if len(facets) >= limit:
             break

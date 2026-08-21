@@ -19,6 +19,23 @@ except ImportError:  # pragma: no cover
     openpyxl = None
 
 HEADING = re.compile(r"^\s*(\d+(?:\.\d+)*)\.?\s+(.+?)\s*$")
+BOILERPLATE = re.compile(
+    r"(?i)^\s*(?:[-—]\s*)?(?:internal use only|page\s+\d+|"
+    r"\(cid:\d+\))\s*$"
+)
+
+
+def _clean_text(text: str) -> str:
+    lines = []
+    for raw_line in text.splitlines():
+        line = re.sub(r"\(cid:\d+\)", "", raw_line, flags=re.I)
+        line = re.sub(r"(?i)\s*[-—]\s*internal use only\b", "", line)
+        line = re.sub(r"(?i)\bpage\s+\d+\b", "", line)
+        line = re.sub(r"\s+", " ", line).strip()
+        if not line or BOILERPLATE.match(line) or line.casefold() == "northwind traders, inc.":
+            continue
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _title(text: str, path: Path) -> str:
@@ -76,6 +93,7 @@ def parse_file(path: str | Path, department: str | None = None) -> Document:
         text = "\n\n".join(blocks)
     else:
         text = p.read_text(errors="replace")
+    text = _clean_text(text)
     title = _title(text, p)
     doc_id = re.sub(r"[^a-z0-9]+", "-", p.stem.lower()).strip("-")
     return Document(doc_id, p.name, str(p), title, department, sections=_sections(text, pages))

@@ -13,9 +13,6 @@ def _slots(text: str) -> dict[str, str]:
     plan = re.search(r"\b([A-Za-z][\w-]*)\s+(?:plan|tier)\b", text, re.I)
     if plan and plan.group(1).lower() not in {"as", "the", "a", "what"}:
         slots["plan"] = plan.group(1)
-    department = re.search(r"\b(HR|Finance|IT|Legal|Sales)\b", text, re.I)
-    if department:
-        slots["department"] = department.group(1)
     year = re.search(r"\b(19|20)\d{2}\b", text)
     if year:
         slots["year"] = year.group(0)

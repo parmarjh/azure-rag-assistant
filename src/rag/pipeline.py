@@ -115,7 +115,7 @@ class RagPipeline:
         rewritten = understanding["rewritten"] if self.config.use_query_rewrite else question.strip()
         filters = build_filter(
             user,
-            understanding["entities"].get("department"),
+            user.department if user else None,
             self.config.filter_current_only and not understanding["version_intent"],
         )
         if not self.config.filter_current_only:
@@ -179,7 +179,12 @@ class RagPipeline:
         conf = confidence(rewritten, candidates)
         should_abstain = self.config.enable_guardrails and (
             conf < self.config.abstain_threshold
-            or not has_sufficient_evidence(rewritten, candidates)
+            or not has_sufficient_evidence(
+                rewritten,
+                candidates,
+                self.chunks,
+                self.config.evidence_pair_fraction,
+            )
         )
         citations = []
         usage = Usage()

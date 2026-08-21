@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 
 from .context import assemble
@@ -40,9 +41,42 @@ def retrieve(index, embedder, query: str, filters: dict, top_k: int = 8,
         timings["search"] = search_span.elapsed_ms
     fused = reciprocal_rank_fusion(lists)
     with Span("rerank") as rerank_span:
-        ranked = rerank(query, fused, threshold) if use_rerank else fused
+        ranked = (
+            rerank(query, fused, threshold, index=index, embedder=embedder)
+            if use_rerank else fused
+        )
     if timings is not None:
         timings["rerank"] = rerank_span.elapsed_ms
+    if len(queries) > 1:
+        required: list[Retrieved] = []
+        for subquery in queries:
+            terms = {
+                term for term in re.findall(r"[a-z0-9]+", subquery.lower())
+                if len(term) >= 3
+            }
+            match = next(
+                (
+                    item for item in ranked
+                    if any(
+                        query_term in metadata_term
+                        for query_term in terms
+                        for metadata_term in re.findall(
+                            r"[a-z0-9]+",
+                            f"{item.filename} {item.chunk.doc_title}".lower(),
+                        )
+                    )
+                ),
+                None,
+            )
+            if match is not None and match.chunk_id not in {
+                item.chunk_id for item in required
+            }:
+                required.append(match)
+        if required:
+            required_ids = {item.chunk_id for item in required}
+            ranked = required + [
+                item for item in ranked if item.chunk_id not in required_ids
+            ]
     if neighbour_expansion and hasattr(index, "chunks"):
         selected = {item.chunk_id for item in ranked[:top_k]}
         expanded = list(ranked)

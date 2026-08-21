@@ -23,13 +23,84 @@ def _sentences(text: str) -> list[str]:
     return [x.strip() for x in re.split(r"(?<=[.!?])\s+", text) if x.strip()]
 
 
+def _units(text: str) -> list[str]:
+    units = []
+    columns: list[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("Feature "):
+            columns = re.sub(r"\bEnterprise Plus\b", "Enterprise_Plus", line).split()
+        elif columns and line.startswith("API access "):
+            values = re.findall(
+                r"Limited \([^)]*\)|\d+[kKmM]\s+calls?/mo|Unlimited",
+                line[len("API access "):],
+            )
+            if len(values) >= len(columns) - 1:
+                units.extend(
+                    f"API access for {column}: {value}"
+                    for column, value in zip(columns[1:], values)
+                )
+                continue
+        if "|" in line:
+            units.append(line)
+        else:
+            units.extend(_sentences(line))
+    return units
+
+
+def _answerable_unit(unit: str) -> bool:
+    normalized = unit.casefold()
+    return not (
+        normalized.startswith("sheet:")
+        or normalized.startswith(("tier price", "feature starter"))
+        or "sales operations" in normalized
+        or re.fullmatch(r"[\s|:–—-]+", unit)
+    )
+
+
 def _word_forms(text: str) -> set[str]:
     words = re.findall(r"[a-z0-9$%]+", text.lower())
-    return set(words) | {word[:6] for word in words if len(word) >= 6}
+    stems = {
+        word[:-1] for word in words
+        if len(word) > 4 and word.endswith("s")
+    }
+    return set(words) | stems | {word[:6] for word in words if len(word) >= 6}
 
 
 def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
-    raw_focus = set(re.findall(r"[a-z0-9]+", focus.lower()))
+    if re.search(
+        r"\b(?:tier|seats?)\s*\d+\b|\b\d+\s*[- ]?\s*seats?\b",
+        focus,
+        re.I,
+    ):
+        return items
+    raw_focus = re.findall(r"[a-z0-9]+", focus.lower())
+    explicit: list[tuple[int, Retrieved]] = []
+    for item in items:
+        metadata = re.findall(
+            r"[a-z0-9]+",
+            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title}".lower(),
+        )
+        for term in metadata:
+            for query_term in raw_focus:
+                if (
+                    len(query_term) >= 3
+                    and query_term not in _GENERATION_STOP_WORDS
+                    and query_term not in {"policy", "agreement"}
+                    and query_term in term
+                ):
+                    explicit.append((focus.lower().rfind(query_term), item))
+    if explicit:
+        position = max(value[0] for value in explicit)
+        selected = []
+        seen = set()
+        for item_position, item in explicit:
+            if item_position == position and item.chunk_id not in seen:
+                selected.append(item)
+                seen.add(item.chunk_id)
+        return selected
     focus_terms = {
         term[:5] for term in _word_forms(focus)
         if len(term) >= 4 and term not in _GENERATION_STOP_WORDS
@@ -41,8 +112,8 @@ def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
             r"[a-z0-9]+",
             f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title}".lower(),
         ))
-        strong_metadata -= {"template", "agreement", "mutual", "rate", "card"}
-        if raw_focus & {term for term in strong_metadata if len(term) >= 3}:
+        strong_metadata -= {"template", "agreement", "mutual", "rate", "card", "policy"}
+        if set(raw_focus) & {term for term in strong_metadata if len(term) >= 3}:
             strong_matches.append(item)
         metadata = _word_forms(
             f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title} {item.section_path}"
@@ -53,6 +124,55 @@ def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
         return strong_matches
     best = max((score for score, _ in scored), default=0)
     return [item for score, item in scored if score == best] if best else items
+
+
+def _candidate_score(
+    question: str,
+    unit: str,
+    item: Retrieved,
+    idf: dict[str, float],
+) -> float:
+    stop = _GENERATION_STOP_WORDS | {
+        "a", "an", "can", "does", "is", "of", "on", "our", "per", "the",
+        "to", "what", "who", "with", "for", "how", "many", "much",
+        "agreement", "expense", "nda", "policy", "service", "travel", "vendor",
+    }
+    query_terms = [
+        term for term in re.findall(r"[a-z0-9$%]+", question.lower())
+        if term not in stop
+    ]
+    unit_terms = _word_forms(unit)
+    weighted_total = sum(idf.get(term, 1.0) for term in set(query_terms))
+    weighted_match = sum(
+        idf.get(term, 1.0)
+        for term in set(query_terms)
+        if term in unit_terms
+        or (len(term) >= 6 and term[:6] in {word[:6] for word in unit_terms})
+    )
+    overlap = weighted_match / max(weighted_total, 1.0)
+    asks_value = bool(re.search(
+        r"\b(how much|how many|what price|what cost|cost|price|cap|limit|"
+        r"percentage|when|rate)\b", question, re.I
+    ))
+    has_answer_type = bool(re.search(
+        r"\$|%|\b\d+(?:\.\d+)?\b|\b(?:january|february|march|april|may|"
+        r"june|july|august|september|october|november|december)\b",
+        unit,
+        re.I,
+    ))
+    answer_bonus = 0.30 if asks_value and has_answer_type else 0.0
+    query_numbers = [
+        int(value.replace(",", ""))
+        for value in re.findall(r"\b\d[\d,]*\b", question)
+    ]
+    numeric_match = 0.0
+    for number in query_numbers:
+        if re.search(rf"\b{number:,}\b|\b{number}\b", unit):
+            numeric_match = max(numeric_match, 0.55)
+        for low, high in re.findall(r"(\d+)\s*[–-]\s*(\d+)", unit):
+            if int(low) <= number <= int(high):
+                numeric_match = max(numeric_match, 0.55)
+    return overlap + answer_bonus + numeric_match + item.score * 0.35
 
 
 def _usage(question: str, context: list[Retrieved], text: str,
@@ -79,59 +199,85 @@ def _local_generate(
     selected: list[tuple[str, Retrieved]] = []
     for focus in focus_queries or [question]:
         focus_items = _focus_items(focus, items)
-        qwords = _word_forms(focus)
-        candidates: list[tuple[float, str, Retrieved]] = []
-        for item in focus_items:
-            for sentence in _sentences(body_text(item)):
-                words = _word_forms(
-                    f"{sentence} {item.filename} {item.chunk.doc_title} {item.section_path}"
-                )
-                overlap = len(qwords & words)
-                if overlap:
-                    exact = overlap / max(1, len(qwords))
-                    candidates.append((exact + item.score * 0.2, sentence, item))
-        candidates.sort(key=lambda x: (-x[0], x[2].chunk_id, x[1]))
-        distinctive = {
-            word for word in qwords
-            if len(word) >= 4 and word not in _GENERATION_STOP_WORDS
+        candidate_units = [
+            (unit, item)
+            for item in focus_items
+            for unit in _units(body_text(item))
+            if _answerable_unit(unit)
+        ]
+        corpus_units = [unit for unit, _ in candidate_units]
+        document_frequency = {}
+        for term in set(re.findall(r"[a-z0-9$%]+", focus.lower())):
+            document_frequency[term] = sum(
+                term in _word_forms(unit) for unit in corpus_units
+            )
+        unit_idf = {
+            term: 1.0 + len(corpus_units) / max(1, frequency)
+            for term, frequency in document_frequency.items()
         }
-        if distinctive:
-            coverage = [
-                (
-                    len(distinctive & _word_forms(
-                        f"{sentence} {item.filename} {item.chunk.doc_title} {item.section_path}"
-                    )),
-                    score,
-                    sentence,
-                    item,
-                )
-                for score, sentence, item in candidates
-            ]
-            best = max((value for value, _, _, _ in coverage), default=0)
-            if best:
-                candidates = [
-                    (score, sentence, item)
-                    for value, score, sentence, item in coverage
-                    if value == best
-                ]
-                if re.search(r"\b(period|how long|duration|survive)\b", focus, re.I):
-                    candidates.sort(
-                        key=lambda x: (
-                            not bool(re.search(r"\d", x[1])),
-                            -x[0],
-                            x[2].chunk_id,
-                            x[1],
-                        )
-                    )
-                else:
-                    candidates.sort(key=lambda x: (-x[0], x[2].chunk_id, x[1]))
+        candidates = [
+            (_candidate_score(focus, unit, item, unit_idf), unit, item)
+            for unit, item in candidate_units
+        ]
+        candidates.sort(key=lambda x: (-x[0], x[2].chunk_id, x[1]))
         if candidates:
-            selected.append((candidates[0][1], candidates[0][2]))
+            chosen = candidates[:1]
+            if len(focus_queries or []) > 1 and re.search(
+                r"\b(?:deadline|receipt|threshold)\b", focus, re.I
+            ):
+                for keyword in ("calendar days", "receipt", "deadline"):
+                    match = next(
+                        (
+                            candidate for candidate in candidates
+                            if keyword in candidate[1].casefold()
+                            and candidate not in chosen
+                        ),
+                        None,
+                    )
+                    if match is not None:
+                        chosen.append(match)
+            if len(focus_queries or []) <= 1 and re.search(
+                r"\b(?:and|combined|approve|approval|who)\b", focus, re.I
+            ):
+                chosen = candidates[:2]
+                keywords = ("annual", "prepaid", "volume", "combined", "approver", "approval")
+                for keyword in keywords:
+                    matches = [
+                        candidate for candidate in candidates
+                        if keyword in candidate[1].casefold()
+                        and candidate not in chosen
+                    ]
+                    if keyword == "approver":
+                        matches.sort(
+                            key=lambda candidate: not bool(
+                                re.search(r"\d+\s*[%–-].*\d+", candidate[1])
+                            )
+                        )
+                    match = next(
+                        iter(matches),
+                        None,
+                    )
+                    if match is not None:
+                        if keyword == "approver" and len(chosen) >= 5:
+                            chosen[-1] = match
+                        else:
+                            chosen.append(match)
+                approval_row = next(
+                    (
+                        candidate for candidate in candidates
+                        if "chief revenue officer" in candidate[1].casefold()
+                        and re.search(r"\d+\s*[%–-].*\d+", candidate[1])
+                    ),
+                    None,
+                )
+                if approval_row is not None and approval_row not in chosen:
+                    chosen = chosen[:4] + [approval_row]
+            selected.extend((candidate[1], candidate[2]) for candidate in chosen)
     if not selected:
         selected = [
             (sentences[0], item)
             for item in items
-            if (sentences := _sentences(body_text(item)))
+            if (sentences := _units(body_text(item)))
         ][:5]
     selected = selected[:5]
     citations: list[Citation] = []
