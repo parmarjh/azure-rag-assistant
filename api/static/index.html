@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Northwind Knowledge Assistant</title>
+  <style>
+    body{font:16px system-ui;margin:2rem auto;max-width:850px;background:#f6f8fb;color:#182230}
+    main{background:white;padding:2rem;border-radius:12px;box-shadow:0 2px 12px #0001}
+    textarea{width:100%;min-height:80px;padding:.7rem}button{margin-top:.7rem;padding:.6rem 1rem}
+    #answer{white-space:pre-wrap;margin-top:1.5rem}.citation{font-size:.9rem;color:#536}
+  </style>
+</head>
+<body><main><h1>Northwind Knowledge Assistant</h1>
+<textarea id="question" placeholder="Ask a question about company policies..."></textarea>
+<button onclick="ask()">Ask</button><div id="answer"></div>
+<script>
+async function ask(){const q=document.getElementById('question').value;
+ const r=await fetch('/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:q})});
+ const x=await r.json(); document.getElementById('answer').innerHTML=
+ '<strong>'+x.text.replaceAll('<','&lt;')+'</strong><p>Confidence: '+x.confidence.toFixed(2)+'</p>'+
+ (x.citations||[]).map((c,i)=>'<div class="citation">['+(i+1)+'] '+c.filename+' — '+c.section_path+'</div>').join('');}
+</script></main></body></html>

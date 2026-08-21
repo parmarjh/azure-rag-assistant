@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "azure-rag-assistant"
+version = "0.1.0"
+description = "Offline-first enterprise knowledge assistant with Azure AI providers"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pdfplumber>=0.10",
+  "python-docx>=1.1",
+  "openpyxl>=3.1",
+  "pydantic>=2.0",
+  "pydantic-settings>=2.0",
+  "fastapi>=0.100",
+  "uvicorn>=0.22",
+]
+
+[project.optional-dependencies]
+azure = [
+  "azure-search-documents>=11.5",
+  "openai>=1.0",
+  "azure-identity>=1.15",
+  "azure-monitor-opentelemetry>=1.0",
+]
+dev = ["pytest>=7.0", "ruff>=0.6"]
+
+[project.scripts]
+rag = "rag.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = ["eval", ".venv"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
