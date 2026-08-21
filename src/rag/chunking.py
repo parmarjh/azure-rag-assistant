@@ -32,7 +32,12 @@ def baseline_chunks(doc: Document, size: int = 1000) -> list[Chunk]:
             for n, i in enumerate(range(0, len(text), size))]
 
 
-def improved_chunks(doc: Document, target: int = 350, overlap: int = 80) -> list[Chunk]:
+def improved_chunks(
+    doc: Document,
+    target: int = 350,
+    overlap: int = 80,
+    with_header: bool = True,
+) -> list[Chunk]:
     result: list[Chunk] = []
     n = 0
     for section in doc.sections:
@@ -40,11 +45,35 @@ def improved_chunks(doc: Document, target: int = 350, overlap: int = 80) -> list
         if not words:
             continue
         if len(words) <= target:
-            windows = [words]
+            windows = [section.text]
+        elif "|" in section.text:
+            lines = [line.strip() for line in section.text.splitlines() if line.strip()]
+            windows = []
+            start = 0
+            while start < len(lines):
+                end = start
+                count = 0
+                while end < len(lines) and count + len(_tokens(lines[end])) <= target:
+                    count += len(_tokens(lines[end]))
+                    end += 1
+                if end == start:
+                    end += 1
+                windows.append("\n".join(lines[start:end]))
+                if end >= len(lines):
+                    break
+                overlap_count = 0
+                next_start = end
+                while next_start > start and overlap_count < overlap:
+                    next_start -= 1
+                    overlap_count += len(_tokens(lines[next_start]))
+                if next_start == start:
+                    next_start = end
+                start = next_start
         else:
             step = max(1, target - overlap)
             windows = [words[i:i + target] for i in range(0, len(words), step)]
         for window in windows:
-            result.append(_make(doc, " ".join(window), section, n, True))
+            text = window if isinstance(window, str) else " ".join(window)
+            result.append(_make(doc, text, section, n, with_header))
             n += 1
     return result

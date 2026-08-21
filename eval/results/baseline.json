@@ -1,0 +1,1944 @@
+{
+  "mode": "baseline",
+  "provider": "local",
+  "judge": "none",
+  "dataset": "eval/dataset.jsonl",
+  "wall_time_s": 0.44,
+  "config": {
+    "provider": "local",
+    "mode": "baseline",
+    "chunk_size_tokens": 1000,
+    "chunk_overlap_tokens": 0,
+    "section_aware": false,
+    "prepend_header": false,
+    "top_k": 3,
+    "candidate_k": 3,
+    "use_hybrid": false,
+    "use_rerank": false,
+    "use_query_rewrite": false,
+    "use_subquery_decomposition": false,
+    "filter_current_only": false,
+    "per_doc_cap": 99,
+    "neighbour_expansion": false,
+    "abstain_threshold": 0.0,
+    "enable_guardrails": false,
+    "enable_clarification": false,
+    "context_token_budget": 5000,
+    "embedding_model": "text-embedding-3-large",
+    "chat_model": "gpt-4o"
+  },
+  "aggregate": {
+    "n_items": 38,
+    "retrieval": {
+      "hit_rate_pct": 37.93,
+      "doc_recall": 0.3621,
+      "section_hit_rate": 0.0,
+      "mrr": 0.2759,
+      "chunk_precision": 0.1609,
+      "context_fact_recall": 0.3132
+    },
+    "generation": {
+      "answer_correctness": 0.1535,
+      "answer_correctness_answerable": 0.2011,
+      "groundedness": 1.0,
+      "citation_precision": 0.3448,
+      "citation_recall": 0.3103,
+      "hallucination_rate_pct": 15.79,
+      "behavior_accuracy_pct": 76.32,
+      "stale_version_leak_pct": 0.0
+    },
+    "system": {
+      "latency_ms_mean": 9.6571,
+      "latency_ms_p95": 14.98,
+      "prompt_tokens_mean": 425.6053,
+      "completion_tokens_mean": 23.3947,
+      "cost_usd_total": 0.002959
+    },
+    "by_category": {
+      "acl": {
+        "n": 2,
+        "hit_rate_pct": 100.0,
+        "answer_correctness": 0.5,
+        "behavior_accuracy_pct": 50.0,
+        "hallucination_rate_pct": 50.0,
+        "groundedness": 1.0
+      },
+      "ambiguous": {
+        "n": 3,
+        "hit_rate_pct": 0.0,
+        "answer_correctness": 0.0,
+        "behavior_accuracy_pct": 0.0,
+        "hallucination_rate_pct": 0.0,
+        "groundedness": 1.0
+      },
+      "followup": {
+        "n": 5,
+        "hit_rate_pct": 20.0,
+        "answer_correctness": 0.2,
+        "behavior_accuracy_pct": 100.0,
+        "hallucination_rate_pct": 0.0,
+        "groundedness": 1.0
+      },
+      "multi_doc": {
+        "n": 6,
+        "hit_rate_pct": 33.33,
+        "answer_correctness": 0.0556,
+        "behavior_accuracy_pct": 100.0,
+        "hallucination_rate_pct": 0.0,
+        "groundedness": 1.0
+      },
+      "no_answer": {
+        "n": 5,
+        "hit_rate_pct": 0.0,
+        "answer_correctness": 0.0,
+        "behavior_accuracy_pct": 0.0,
+        "hallucination_rate_pct": 100.0,
+        "groundedness": 1.0
+      },
+      "straightforward": {
+        "n": 12,
+        "hit_rate_pct": 58.33,
+        "answer_correctness": 0.2917,
+        "behavior_accuracy_pct": 100.0,
+        "hallucination_rate_pct": 0.0,
+        "groundedness": 1.0
+      },
+      "version_conflict": {
+        "n": 5,
+        "hit_rate_pct": 0.0,
+        "answer_correctness": 0.0,
+        "behavior_accuracy_pct": 100.0,
+        "hallucination_rate_pct": 0.0,
+        "groundedness": 1.0
+      }
+    }
+  },
+  "items": [
+    {
+      "item_id": "S01",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "How many weeks of paid parental leave do eligible employees receive?",
+      "answer_text": "Eligible employees (90+ days of continuous service) receive 12 weeks of paid parental leave following the birth, adoption, or foster placement of a child. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "leavepolicy.pdf",
+        "leavepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "leavepolicy.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 1.0,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 1.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.3604588731124728,
+      "latency_ms": {
+        "rewrite": 0.6760340002074372,
+        "search": 0.3989569995610509,
+        "rerank": 0.0,
+        "generate": 15.449624999746447,
+        "total": 17.081044999940787
+      },
+      "prompt_tokens": 460,
+      "completion_tokens": 25,
+      "cost_usd": 8.4e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S02",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "After how many failed login attempts is an account locked, and for how long?",
+      "answer_text": "Short-term disability: 60% of salary for up to 12 weeks, Company-paid. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vendorcontract.pdf",
+        "benefits.pdf",
+        "nda.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.3333333333333333,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.2845411511591489,
+      "latency_ms": {
+        "rewrite": 0.2641020000737626,
+        "search": 0.37440600044647,
+        "rerank": 0.0,
+        "generate": 7.18038700051693,
+        "total": 8.294535999993968
+      },
+      "prompt_tokens": 469,
+      "completion_tokens": 12,
+      "cost_usd": 7.755e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S03",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "What is the minimum password length for company accounts?",
+      "answer_text": "Using the same password across multiple Company systems or across work and personal accounts. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "passwordpolicy.docx",
+        "vpnguide.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "passwordpolicy.docx"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.31272003973686885,
+      "latency_ms": {
+        "rewrite": 0.03733100038516568,
+        "search": 0.3746960001080879,
+        "rerank": 0.0,
+        "generate": 4.690688000664522,
+        "total": 5.422449999969103
+      },
+      "prompt_tokens": 338,
+      "completion_tokens": 15,
+      "cost_usd": 5.969999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S04",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "At what single-expense amount is an itemized receipt required?",
+      "answer_text": "An itemized receipt is required for any single expense of $25 or more. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "vendorcontract.pdf",
+        "pricing2025.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 1.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.35862907749034234,
+      "latency_ms": {
+        "rewrite": 0.03596500027924776,
+        "search": 0.3787360001297202,
+        "rerank": 0.0,
+        "generate": 13.13875000050757,
+        "total": 13.951569999335334
+      },
+      "prompt_tokens": 461,
+      "completion_tokens": 14,
+      "cost_usd": 7.754999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S05",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "What is the maximum 401(k) match the company provides?",
+      "answer_text": "Amounts not paid when due accrue interest at 1.0% per month or the maximum rate permitted by law, whichever is lower. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "vpnguide.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.33769482643481763,
+      "latency_ms": {
+        "rewrite": 0.040285000068251975,
+        "search": 0.3789649999816902,
+        "rerank": 0.0,
+        "generate": 12.334918999840738,
+        "total": 13.120350999997754
+      },
+      "prompt_tokens": 422,
+      "completion_tokens": 22,
+      "cost_usd": 7.649999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S06",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "How much tuition reimbursement can an employee claim per calendar year?",
+      "answer_text": "Employees may claim up to $600 per year toward gym memberships, fitness equipment, or wellness apps through the WellNorth reimbursement portal. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "pricing2026.pdf",
+        "pricing2025.pdf",
+        "benefits.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 0.3333333333333333,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.2346287574075358,
+      "latency_ms": {
+        "rewrite": 0.038268000025709625,
+        "search": 0.3697319998536841,
+        "rerank": 0.0,
+        "generate": 8.921976000237919,
+        "total": 9.733558000334597
+      },
+      "prompt_tokens": 449,
+      "completion_tokens": 22,
+      "cost_usd": 8.054999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S07",
+      "category": "straightforward",
+      "difficulty": "medium",
+      "question": "What is the nightly hotel rate cap for a Tier 2 city?",
+      "answer_text": "Expense Amount Required Approver Up to $500 Direct Manager $500 \u2013 $2,500 Department Director $2,500 \u2013 $10,000 Department VP Above $10,000 VP [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "leavepolicy.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.2903431152647262,
+      "latency_ms": {
+        "rewrite": 0.03532499977154657,
+        "search": 0.36908699985360727,
+        "rerank": 0.0,
+        "generate": 13.563569000325515,
+        "total": 14.33359400016343
+      },
+      "prompt_tokens": 432,
+      "completion_tokens": 23,
+      "cost_usd": 7.86e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S08",
+      "category": "straightforward",
+      "difficulty": "medium",
+      "question": "What is the domestic per-diem rate for dinner?",
+      "answer_text": "Submit all trip expenses through ExpensePath within 30 calendar days of trip completion, with itemized receipts for any expense of $25 or more. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "travelpolicy.docx",
+        "expensepolicy.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "travelpolicy.docx"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.34071639487966904,
+      "latency_ms": {
+        "rewrite": 0.036006000300403684,
+        "search": 0.372776999938651,
+        "rerank": 0.0,
+        "generate": 7.712971999353613,
+        "total": 8.511613000337093
+      },
+      "prompt_tokens": 457,
+      "completion_tokens": 24,
+      "cost_usd": 8.295e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S09",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "What are the payment terms in the vendor service agreement?",
+      "answer_text": "+ Finance Business Partner Approved expense reports are reimbursed via direct deposit within 7 business days of final approval, on the Company's standard bi-weekly payment cycle. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "expensepolicy.pdf",
+        "vpnguide.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.5,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.3470943092230421,
+      "latency_ms": {
+        "rewrite": 0.03616399953898508,
+        "search": 0.37269499989633914,
+        "rerank": 0.0,
+        "generate": 5.98567599990929,
+        "total": 6.665126999905624
+      },
+      "prompt_tokens": 301,
+      "completion_tokens": 27,
+      "cost_usd": 6.135e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S10",
+      "category": "straightforward",
+      "difficulty": "easy",
+      "question": "What portal address do I enter in the VPN client?",
+      "answer_text": "Enter portal address: vpn.northwindtraders.example Authenti [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vpnguide.pdf",
+        "nda.docx",
+        "leavepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vpnguide.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 1.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.32005933755260096,
+      "latency_ms": {
+        "rewrite": 0.03487799949652981,
+        "search": 0.3800210006374982,
+        "rerank": 0.0,
+        "generate": 4.951363000145648,
+        "total": 5.724798000301234
+      },
+      "prompt_tokens": 419,
+      "completion_tokens": 6,
+      "cost_usd": 6.644999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S11",
+      "category": "straightforward",
+      "difficulty": "hard",
+      "question": "How much notice do I need to give for a five-day PTO request?",
+      "answer_text": "This obligation survives termination of this Agreement for a period of five (5) years, or indefinitely for trade secrets. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vendorcontract.pdf",
+        "discounts.xlsx",
+        "benefits.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.21734840838184824,
+      "latency_ms": {
+        "rewrite": 0.03882999953930266,
+        "search": 0.3760149993468076,
+        "rerank": 0.0,
+        "generate": 5.965688999822305,
+        "total": 6.687580999823695
+      },
+      "prompt_tokens": 339,
+      "completion_tokens": 20,
+      "cost_usd": 6.284999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "S12",
+      "category": "straightforward",
+      "difficulty": "hard",
+      "question": "Do standard employees have to rotate their passwords on a schedule?",
+      "answer_text": "Northwind Traders offers a comprehensive benefits package to all employees scheduled to work 30+ hours per week. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "pricing2026.pdf",
+        "benefits.pdf",
+        "passwordpolicy.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 0.3333333333333333,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.3265309186898079,
+      "latency_ms": {
+        "rewrite": 0.037413999962154776,
+        "search": 0.3738450004675542,
+        "rerank": 0.0,
+        "generate": 14.193437999892922,
+        "total": 14.9753329997111
+      },
+      "prompt_tokens": 460,
+      "completion_tokens": 18,
+      "cost_usd": 7.979999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M01",
+      "category": "multi_doc",
+      "difficulty": "hard",
+      "question": "Compare the expense submission deadline and receipt threshold in the Travel Policy versus the Expense Policy.",
+      "answer_text": "An itemized receipt is required for any single expense of $25 or more. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "leavepolicy.pdf",
+        "travelpolicy.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 1.0,
+      "chunk_precision": 0.6666666666666666,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 0.3333333333333333,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 0.5,
+      "hallucinated": false,
+      "confidence": 0.44915020781233134,
+      "latency_ms": {
+        "rewrite": 0.3365160000612377,
+        "search": 0.3948339999624295,
+        "rerank": 0.0,
+        "generate": 12.365438000415452,
+        "total": 13.480193000759755
+      },
+      "prompt_tokens": 438,
+      "completion_tokens": 14,
+      "cost_usd": 7.41e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M02",
+      "category": "multi_doc",
+      "difficulty": "hard",
+      "question": "Compare the confidentiality survival period in the NDA template with the one in the vendor service agreement.",
+      "answer_text": "Reports submitted after 60 days require written justification and VP approval, and may be denied at the Company's discretion. [1] Spa services, gym fees while traveling, and personal grooming. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "expensepolicy.pdf",
+        "travelpolicy.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.5,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.35734316822961376,
+      "latency_ms": {
+        "rewrite": 0.2190589993915637,
+        "search": 0.37885300025664037,
+        "rerank": 0.0,
+        "generate": 11.751058000299963,
+        "total": 12.727966000056767
+      },
+      "prompt_tokens": 439,
+      "completion_tokens": 30,
+      "cost_usd": 8.384999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M03",
+      "category": "multi_doc",
+      "difficulty": "hard",
+      "question": "For a 300-seat annual prepaid contract in 2026, what combined discount applies and who has to approve it?",
+      "answer_text": "Northwind Traders, Inc. | Finance Department | Effective: January 1, 2026 | Version 3.2 | Policy Owner: Director, Corporate Travel [1] See Pricing2026.pdf for current rates effective January 1, 2026. [2] Nightly rate caps (excluding taxes and fees) are set by city cost tier: Bookings above the cap require pre-approval from a Director or above, and should be booked at the Company's negotiated hotel partners where available. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vendorcontract.pdf",
+        "pricing2025.pdf",
+        "travelpolicy.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "travelpolicy.docx",
+        "pricing2025.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.25,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.44215495544456473,
+      "latency_ms": {
+        "rewrite": 0.050165000175184105,
+        "search": 0.3768130000025849,
+        "rerank": 0.0,
+        "generate": 19.87837100023171,
+        "total": 20.645778000471182
+      },
+      "prompt_tokens": 398,
+      "completion_tokens": 68,
+      "cost_usd": 0.00010049999999999999,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M04",
+      "category": "multi_doc",
+      "difficulty": "medium",
+      "question": "What is the total monthly per-seat cost in 2026 for the Enterprise tier with the Advanced Analytics add-on?",
+      "answer_text": "Northwind Traders, Inc. | Information Technology | Last Updated: March 2026 | Version 2.3 | Policy Owner: IT Infrastructure [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vpnguide.pdf",
+        "nda.docx",
+        "nda.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vpnguide.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.31571003500813044,
+      "latency_ms": {
+        "rewrite": 0.19402500038268045,
+        "search": 0.37903100019320846,
+        "rerank": 0.0,
+        "generate": 8.301374999973632,
+        "total": 9.257081999749062
+      },
+      "prompt_tokens": 463,
+      "completion_tokens": 20,
+      "cost_usd": 8.144999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M05",
+      "category": "multi_doc",
+      "difficulty": "hard",
+      "question": "Can I get a gym membership reimbursed, and what about gym fees while I am travelling?",
+      "answer_text": "Spa services, gym fees while traveling, and personal grooming. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "discounts.xlsx",
+        "pricing2026.pdf",
+        "expensepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 0.5,
+      "section_hit": 0.0,
+      "mrr": 0.3333333333333333,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 0.5,
+      "hallucinated": false,
+      "confidence": 0.2313441347166041,
+      "latency_ms": {
+        "rewrite": 0.045030000364931766,
+        "search": 0.3789870006585261,
+        "rerank": 0.0,
+        "generate": 6.867439000416198,
+        "total": 7.590974999402533
+      },
+      "prompt_tokens": 336,
+      "completion_tokens": 10,
+      "cost_usd": 5.639999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "M06",
+      "category": "multi_doc",
+      "difficulty": "hard",
+      "question": "Who needs to approve a $6,000 software subscription purchase?",
+      "answer_text": "Employees may be reimbursed up to $5,250 per calendar year for job-related coursework and certifications, provided a grade of B or higher (or Pass, for pass/fail courses) is achieved and the course is pre-approved by the employee's manager and People Operations. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "nda.docx",
+        "benefits.pdf",
+        "nda.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.31333676498239926,
+      "latency_ms": {
+        "rewrite": 0.03604700032155961,
+        "search": 0.36524899951473344,
+        "rerank": 0.0,
+        "generate": 8.758625999689684,
+        "total": 9.551737000037974
+      },
+      "prompt_tokens": 455,
+      "completion_tokens": 42,
+      "cost_usd": 9.345e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "V01",
+      "category": "version_conflict",
+      "difficulty": "medium",
+      "question": "What is the list price per seat per month for the Enterprise tier?",
+      "answer_text": "Remote work stipend: $50/month toward home internet for hybrid/remote employees. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "benefits.pdf",
+        "vendorcontract.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.3470141568237899,
+      "latency_ms": {
+        "rewrite": 0.0362169994332362,
+        "search": 0.37076000080560334,
+        "rerank": 0.0,
+        "generate": 12.287301000469597,
+        "total": 13.099539999529952
+      },
+      "prompt_tokens": 458,
+      "completion_tokens": 11,
+      "cost_usd": 7.53e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "V02",
+      "category": "version_conflict",
+      "difficulty": "medium",
+      "question": "How much does the Advanced Analytics add-on cost per seat?",
+      "answer_text": "Vendor shall maintain, at its own expense, commercial general liability insurance of at least $1,000,000 per occurrence and professional liability (errors & omissions) insurance of at least $1,000,000 per claim, and shall provide certificates of insurance upon Client's request. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "vendorcontract.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.19803521508378058,
+      "latency_ms": {
+        "rewrite": 0.03862799985654419,
+        "search": 0.38775099983467953,
+        "rerank": 0.0,
+        "generate": 11.182283000380266,
+        "total": 11.95788699988043
+      },
+      "prompt_tokens": 418,
+      "completion_tokens": 40,
+      "cost_usd": 8.669999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "V03",
+      "category": "version_conflict",
+      "difficulty": "hard",
+      "question": "What is the API call limit on the Professional tier?",
+      "answer_text": "Alcohol at value greater than $30/person, unless pre-approved for a client event. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "leavepolicy.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.29301829236781207,
+      "latency_ms": {
+        "rewrite": 0.03339300019433722,
+        "search": 0.36709400046675,
+        "rerank": 0.0,
+        "generate": 10.9251759995459,
+        "total": 11.690764000377385
+      },
+      "prompt_tokens": 428,
+      "completion_tokens": 13,
+      "cost_usd": 7.199999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "V04",
+      "category": "version_conflict",
+      "difficulty": "hard",
+      "question": "What was the Enterprise tier price in 2025?",
+      "answer_text": "Tier Price / Seat / Month Minimum Seats Support Level Starter $32 5 Email, 2-business-day SLA Professional $65 10 Email + chat, next-business-day SLA Enterprise $109 25 Dedicated CSM, 4-hour SLA Enterprise Plus $145 1 [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "pricing2026.pdf",
+        "leavepolicy.pdf",
+        "expensepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "pricing2026.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.3325297760771101,
+      "latency_ms": {
+        "rewrite": 0.03302500044810586,
+        "search": 0.36671399993792875,
+        "rerank": 0.0,
+        "generate": 4.2815890001293155,
+        "total": 5.037167000409681
+      },
+      "prompt_tokens": 422,
+      "completion_tokens": 36,
+      "cost_usd": 8.489999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "V05",
+      "category": "version_conflict",
+      "difficulty": "hard",
+      "question": "How much is the onboarding and implementation package?",
+      "answer_text": "Alcohol at value greater than $30/person, unless pre-approved for a client event. [1] Northwind Traders, Inc. | Legal Department | Template Version: 6.0 | For internal / mock use only \u2014 not a binding [2]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "vendorcontract.pdf",
+        "leavepolicy.pdf",
+        "expensepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf",
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.2579767282024691,
+      "latency_ms": {
+        "rewrite": 0.03741699947568122,
+        "search": 0.364034999620344,
+        "rerank": 0.0,
+        "generate": 12.328433999755362,
+        "total": 13.100070000291453
+      },
+      "prompt_tokens": 428,
+      "completion_tokens": 35,
+      "cost_usd": 8.519999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "N01",
+      "category": "no_answer",
+      "difficulty": "medium",
+      "question": "What is Northwind Traders' stock ticker symbol?",
+      "answer_text": "This document summarizes Northwind Traders' standard list pricing for the OrbitSuite platform, effective for contracts signed on or after January 1, 2026. [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "pricing2026.pdf",
+        "vpnguide.pdf",
+        "pricing2025.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "pricing2026.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.16140146189883034,
+      "latency_ms": {
+        "rewrite": 0.03186800040566595,
+        "search": 0.3936439998142305,
+        "rerank": 0.0,
+        "generate": 10.579065000456467,
+        "total": 11.386830999981612
+      },
+      "prompt_tokens": 450,
+      "completion_tokens": 23,
+      "cost_usd": 8.129999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "N02",
+      "category": "no_answer",
+      "difficulty": "hard",
+      "question": "What is the refund policy for Enterprise customers?",
+      "answer_text": "Audit logs & data residency controls now included on Enterprise (previously Enterprise Plus only). [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "pricing2026.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "pricing2026.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.3372168937896976,
+      "latency_ms": {
+        "rewrite": 0.033815999813668896,
+        "search": 0.3622820004238747,
+        "rerank": 0.0,
+        "generate": 4.0263579994643806,
+        "total": 4.809934000149951
+      },
+      "prompt_tokens": 467,
+      "completion_tokens": 15,
+      "cost_usd": 7.904999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "N03",
+      "category": "no_answer",
+      "difficulty": "hard",
+      "question": "How many vacation days do employees based in Germany get?",
+      "answer_text": "Eligible employees (90+ days of continuous service) receive 12 weeks of paid parental leave following the birth, adoption, or foster placement of a child. [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "leavepolicy.pdf",
+        "travelpolicy.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "leavepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.2401398866311533,
+      "latency_ms": {
+        "rewrite": 0.03321999975014478,
+        "search": 0.3854340002362733,
+        "rerank": 0.0,
+        "generate": 12.97524900019198,
+        "total": 13.799621999169176
+      },
+      "prompt_tokens": 500,
+      "completion_tokens": 25,
+      "cost_usd": 8.999999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "N04",
+      "category": "no_answer",
+      "difficulty": "medium",
+      "question": "Who is the Chief Executive Officer of Northwind Traders?",
+      "answer_text": "Northwind Traders, Inc. | Human Resources | Plan Year: 2026 | Version 3.0 | Policy Owner: Director, Total Rewards [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "benefits.pdf",
+        "expensepolicy.pdf",
+        "nda.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.30491717260832146,
+      "latency_ms": {
+        "rewrite": 0.03370499962329632,
+        "search": 0.37384000006568385,
+        "rerank": 0.0,
+        "generate": 7.915971000329591,
+        "total": 8.721871000489045
+      },
+      "prompt_tokens": 469,
+      "completion_tokens": 20,
+      "cost_usd": 8.235e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "N05",
+      "category": "no_answer",
+      "difficulty": "hard",
+      "question": "What is the uptime SLA credit percentage if we miss the Enterprise SLA?",
+      "answer_text": "Alcohol at value greater than $30/person, unless pre-approved for a client event. [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "expensepolicy.pdf",
+        "vpnguide.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.2303056811387433,
+      "latency_ms": {
+        "rewrite": 0.042102000406885054,
+        "search": 0.3624580003815936,
+        "rerank": 0.0,
+        "generate": 5.4121769999255775,
+        "total": 6.178171000101429
+      },
+      "prompt_tokens": 424,
+      "completion_tokens": 13,
+      "cost_usd": 7.139999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "A01",
+      "category": "ambiguous",
+      "difficulty": "hard",
+      "question": "What is the limit?",
+      "answer_text": "Alcohol at value greater than $30/person, unless pre-approved for a client event. [1]",
+      "behavior": "answer",
+      "behavior_expected": "clarify",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "expensepolicy.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.30426752004082713,
+      "latency_ms": {
+        "rewrite": 0.028434999876481015,
+        "search": 0.3668179997475818,
+        "rerank": 0.0,
+        "generate": 7.061526999677881,
+        "total": 7.809857999745873
+      },
+      "prompt_tokens": 422,
+      "completion_tokens": 13,
+      "cost_usd": 7.11e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "A02",
+      "category": "ambiguous",
+      "difficulty": "hard",
+      "question": "What's the approval threshold?",
+      "answer_text": "Alcohol at value greater than $30/person, unless pre-approved for a client event. [1]",
+      "behavior": "answer",
+      "behavior_expected": "clarify",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "expensepolicy.pdf",
+        "travelpolicy.docx",
+        "leavepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.33281879144576226,
+      "latency_ms": {
+        "rewrite": 0.02995100021507824,
+        "search": 0.37586400048894575,
+        "rerank": 0.0,
+        "generate": 8.548915000574198,
+        "total": 9.311828999670979
+      },
+      "prompt_tokens": 426,
+      "completion_tokens": 13,
+      "cost_usd": 7.17e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "A03",
+      "category": "ambiguous",
+      "difficulty": "hard",
+      "question": "How much can I spend on meals?",
+      "answer_text": "Category Standard Limit Approval Required Above Limit Client meals $100/person Director Team meals / offsites $75/person Manager Ground transportation Actual cost N/A Software / SaaS subscriptions $500/year Department VP Office supplies $150/month Manager Professional development $1,000/year Manager Client gifts $75/reci [1]",
+      "behavior": "answer",
+      "behavior_expected": "clarify",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "pricing2026.pdf",
+        "expensepolicy.pdf",
+        "pricing2025.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "expensepolicy.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 0.5,
+      "section_hit": 0.0,
+      "mrr": 0.5,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 0.5,
+      "hallucinated": false,
+      "confidence": 0.2281487620855539,
+      "latency_ms": {
+        "rewrite": 0.031475000469072256,
+        "search": 0.3699910002978868,
+        "rerank": 0.0,
+        "generate": 3.633309999713674,
+        "total": 4.404363000503508
+      },
+      "prompt_tokens": 431,
+      "completion_tokens": 41,
+      "cost_usd": 8.925e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "F01",
+      "category": "followup",
+      "difficulty": "medium",
+      "question": "What about the Starter tier?",
+      "answer_text": "Approval is based on business needs and team coverage, and requests are addressed in the order received. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "travelpolicy.docx",
+        "expensepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "leavepolicy.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.1729589690963689,
+      "latency_ms": {
+        "rewrite": 0.0966160005191341,
+        "search": 0.36730000010720687,
+        "rerank": 0.0,
+        "generate": 8.383442000194918,
+        "total": 9.201699000186636
+      },
+      "prompt_tokens": 427,
+      "completion_tokens": 18,
+      "cost_usd": 7.485e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "F02",
+      "category": "followup",
+      "difficulty": "medium",
+      "question": "What about someone with 7 years of service?",
+      "answer_text": "Vendor Service Agreement (Template) [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "passwordpolicy.docx",
+        "vendorcontract.pdf",
+        "nda.docx"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.27087705623539526,
+      "latency_ms": {
+        "rewrite": 0.12580499969772063,
+        "search": 0.3846629997497075,
+        "rerank": 0.0,
+        "generate": 4.643526999643655,
+        "total": 5.5305259993474465
+      },
+      "prompt_tokens": 454,
+      "completion_tokens": 5,
+      "cost_usd": 7.11e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "F03",
+      "category": "followup",
+      "difficulty": "medium",
+      "question": "Do they carry over to next year?",
+      "answer_text": "Employee stock purchase plan: 15% discount, two 6-month offering periods per year. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "discounts.xlsx",
+        "nda.docx",
+        "benefits.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.21030633039761995,
+      "latency_ms": {
+        "rewrite": 0.14605300020775758,
+        "search": 0.37035700006526895,
+        "rerank": 0.0,
+        "generate": 3.585325999665656,
+        "total": 4.393457999867678
+      },
+      "prompt_tokens": 329,
+      "completion_tokens": 13,
+      "cost_usd": 5.715e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "F04",
+      "category": "followup",
+      "difficulty": "hard",
+      "question": "Which cities count as Tier 1?",
+      "answer_text": "City Tier | Example Cities | Nightly Cap | Tier 1 | New York, San Francisco, Boston, London | $350 [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "discounts.xlsx",
+        "travelpolicy.docx",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "travelpolicy.docx"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 0.5,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 1.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.2845849148989207,
+      "latency_ms": {
+        "rewrite": 0.042571000449243,
+        "search": 0.37192499985394534,
+        "rerank": 0.0,
+        "generate": 7.377253000413475,
+        "total": 8.12832200062985
+      },
+      "prompt_tokens": 454,
+      "completion_tokens": 21,
+      "cost_usd": 8.069999999999998e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "F05",
+      "category": "followup",
+      "difficulty": "hard",
+      "question": "Are there any exceptions?",
+      "answer_text": "EXCEPT AS EXPRESSLY SET FORTH HEREIN, THE SERVICES ARE PROVIDED \u201cAS IS,\u201d AND VENDOR DISCLAIMS ALL OTHER WARRANTIES, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INF [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "discounts.xlsx",
+        "vendorcontract.pdf",
+        "vendorcontract.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "vendorcontract.pdf"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": false,
+      "confidence": 0.23965631205735405,
+      "latency_ms": {
+        "rewrite": 0.1471010000386741,
+        "search": 0.35547100014809985,
+        "rerank": 0.0,
+        "generate": 2.8418729998520575,
+        "total": 3.635731000031228
+      },
+      "prompt_tokens": 336,
+      "completion_tokens": 33,
+      "cost_usd": 7.019999999999999e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "C01",
+      "category": "acl",
+      "difficulty": "hard",
+      "question": "What is the employee monthly cost of the Gold medical plan?",
+      "answer_text": "FIDO2 / YubiKey) \u2014 required for all IT Administrator accounts Time-based one-time passcode (TOTP) authenticator app SMS text message (permitted only as a fallback method, not primary) Accounts are automatically locked after 5 consecutive failed login attempts within a 15-minute window. [1]",
+      "behavior": "answer",
+      "behavior_expected": "abstain",
+      "behavior_correct": false,
+      "retrieved_docs": [
+        "passwordpolicy.docx",
+        "passwordpolicy.docx",
+        "vpnguide.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "passwordpolicy.docx"
+      ],
+      "hit_at_k": false,
+      "doc_recall": 0.0,
+      "section_hit": 0.0,
+      "mrr": 0.0,
+      "chunk_precision": 0.0,
+      "context_fact_recall": 0.0,
+      "answer_correctness": 0.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 0.0,
+      "citation_recall": 0.0,
+      "hallucinated": true,
+      "confidence": 0.23456597046592775,
+      "latency_ms": {
+        "rewrite": 0.03854899932775879,
+        "search": 0.09411999963049311,
+        "rerank": 0.0,
+        "generate": 4.415635999976075,
+        "total": 4.923385999973107
+      },
+      "prompt_tokens": 449,
+      "completion_tokens": 42,
+      "cost_usd": 9.255e-05,
+      "llm_judge": {}
+    },
+    {
+      "item_id": "C02",
+      "category": "acl",
+      "difficulty": "medium",
+      "question": "What is the employee monthly cost of the Gold medical plan?",
+      "answer_text": "Plan Tier Employee Monthly Cost Employer Contribution Deductible (Individual) Bronze $45 70% $2,500 Silver $95 80% $1,200 Gold $160 90% $500 The Company matches 100% of employee contributions up to 4% of eligible compensation, and 50% of the next 2%, for a maximum match of 5%. [1]",
+      "behavior": "answer",
+      "behavior_expected": "answer",
+      "behavior_correct": true,
+      "retrieved_docs": [
+        "leavepolicy.pdf",
+        "benefits.pdf",
+        "leavepolicy.pdf"
+      ],
+      "retrieved_sections": [
+        "Document",
+        "Document",
+        "Document"
+      ],
+      "cited_docs": [
+        "benefits.pdf"
+      ],
+      "hit_at_k": true,
+      "doc_recall": 1.0,
+      "section_hit": 0.0,
+      "mrr": 0.5,
+      "chunk_precision": 0.3333333333333333,
+      "context_fact_recall": 1.0,
+      "answer_correctness": 1.0,
+      "forbidden_leak": false,
+      "groundedness": 1.0,
+      "ungrounded_claims": [],
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "hallucinated": false,
+      "confidence": 0.43345459285578414,
+      "latency_ms": {
+        "rewrite": 0.038856999708514195,
+        "search": 0.14677800027129706,
+        "rerank": 0.0,
+        "generate": 11.55779500004428,
+        "total": 12.093051000192645
+      },
+      "prompt_tokens": 445,
+      "completion_tokens": 47,
+      "cost_usd": 9.494999999999999e-05,
+      "llm_judge": {}
+    }
+  ]
+}

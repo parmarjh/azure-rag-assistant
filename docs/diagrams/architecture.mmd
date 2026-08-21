@@ -1,0 +1,53 @@
+flowchart TB
+  subgraph Users["Users & Identity"]
+    U["Employee browser / Teams client"]
+    ENTRA["Microsoft Entra ID<br/>app roles + security groups<br/>(HR / Finance / Legal / Engineering)"]
+  end
+
+  subgraph Edge["Edge & API"]
+    FD["Azure Front Door + WAF<br/>TLS, rate limiting, geo rules"]
+    APIM["API Management<br/>token validation, quotas, per-dept throttling"]
+    APP["App Service / Container Apps<br/>FastAPI RAG orchestrator<br/>(VNet integrated, managed identity)"]
+  end
+
+  subgraph Ingest["Document ingestion (event driven)"]
+    SRC["SharePoint / OneDrive / Blob upload"]
+    BLOB["Azure Blob Storage<br/>container per data domain<br/>immutable raw zone"]
+    EG["Event Grid<br/>BlobCreated / BlobDeleted"]
+    FUNC["Azure Functions (durable)<br/>parse -> chunk -> enrich -> embed -> upsert"]
+    DI["Azure AI Document Intelligence<br/>layout / tables / OCR"]
+    COSMOS["Cosmos DB<br/>document registry: version chain,<br/>effective dates, checksums, ACL"]
+  end
+
+  subgraph AI["Azure AI platform"]
+    AOAI["Azure OpenAI<br/>text-embedding-3-large<br/>gpt-4o (answer) / gpt-4o-mini (rewrite)<br/>PTU + provisioned fallback"]
+    SEARCH["Azure AI Search<br/>hybrid (BM25 + HNSW vector)<br/>semantic ranker (L2)<br/>security filters, index alias"]
+    FOUNDRY["Azure AI Foundry<br/>prompt assets, evaluations,<br/>red-team + content safety"]
+  end
+
+  subgraph Platform["Platform services"]
+    KV["Key Vault<br/>keys, connection strings"]
+    REDIS["Azure Cache for Redis<br/>embedding + answer cache,<br/>session state"]
+    AI_INS["Application Insights + Log Analytics<br/>traces, custom RAG metrics"]
+    PBI["Workbooks / dashboards<br/>quality, latency, cost per dept"]
+  end
+
+  U --> FD --> APIM --> APP
+  ENTRA -. OIDC / group claims .-> APIM
+  ENTRA -. group claims .-> APP
+  SRC --> BLOB --> EG --> FUNC
+  FUNC --> DI
+  FUNC --> AOAI
+  FUNC --> SEARCH
+  FUNC --> COSMOS
+  APP --> SEARCH
+  APP --> AOAI
+  APP --> REDIS
+  APP --> COSMOS
+  APP -. secrets via managed identity .-> KV
+  FUNC -. secrets via managed identity .-> KV
+  APP --> AI_INS
+  FUNC --> AI_INS
+  AI_INS --> PBI
+  FOUNDRY -. offline eval on golden set .-> SEARCH
+  FOUNDRY -. prompt versions .-> APP
