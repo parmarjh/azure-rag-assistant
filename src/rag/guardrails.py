@@ -10,6 +10,12 @@ STOP_WORDS = {
     "about", "can", "does", "if", "it", "on", "someone", "that", "we",
     "have", "has", "had", "was", "were", "who", "whom", "much", "miss",
     "compare", "difference", "both", "versus", "vs", "policy",
+    "while", "company", "standard", "required", "receive", "reimbursable",
+    "purchase", "their",
+}
+NUMBER_WORDS = {
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+    "nine", "ten",
 }
 ALIASES = {
     "applies": "apply",
@@ -29,6 +35,10 @@ ALIASES = {
     "survival": "survive",
     "threshold": "limit",
     "versus": "compare",
+    "maximum": "max",
+    "rotate": "rotation",
+    "rotates": "rotation",
+    "rotating": "rotation",
 }
 
 
@@ -48,6 +58,23 @@ def _tokens(text: str) -> list[str]:
     return [_stem(token) for token in re.findall(r"[a-z0-9]+", text.lower())]
 
 
+def _term_matches(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    number_values = {
+        "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+        "ten": "10",
+    }
+    left = number_values.get(left, left)
+    right = number_values.get(right, right)
+    return left == right or (
+        len(left) > 3
+        and len(right) > 3
+        and _within_one(left, right)
+    )
+
+
 def _body(item) -> str:
     if hasattr(item, "chunk"):
         return body_text(item)
@@ -63,10 +90,44 @@ def scrub(text: str) -> str:
     return re.sub(r"(?i)(ignore (?:all )?previous instructions|system prompt)", "[redacted]", text)
 
 
-def has_sufficient_evidence(query: str, items, corpus=None, pair_fraction: float = 0.5) -> bool:
+def _within_one(left: str, right: str) -> bool:
+    if abs(len(left) - len(right)) > 1:
+        return False
+    differences = 0
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if left[i] == right[j]:
+            i += 1
+            j += 1
+            continue
+        differences += 1
+        if differences > 1:
+            return False
+        if len(left) > len(right):
+            i += 1
+        elif len(right) > len(left):
+            j += 1
+        else:
+            i += 1
+            j += 1
+    return differences + (len(left) - i) + (len(right) - j) <= 1
+
+
+def has_sufficient_evidence(
+    query: str,
+    items,
+    corpus=None,
+    pair_fraction: float = 0.5,
+    term_count: int = 3,
+    pair_window: int = 10,
+    subqueries: list[str] | None = None,
+) -> bool:
     query_tokens = re.findall(r"[a-z0-9]+", query.lower())
-    terms = [_stem(token) for token in query_tokens
-             if token not in STOP_WORDS and not token.isdigit()]
+    terms = [
+        _stem(token)
+        for token in query_tokens
+        if token not in STOP_WORDS and len(token) > 3 and not token.isdigit()
+    ]
     if not terms or not items:
         return False
     corpus = corpus or items
@@ -76,11 +137,26 @@ def has_sufficient_evidence(query: str, items, corpus=None, pair_fraction: float
         f"{x.section_path}"
         for x in corpus
     )))
-    if any(len(token) > 3 and _stem(token) not in corpus_terms
-           for token in query_tokens if token not in STOP_WORDS and not token.isdigit()):
+    if any(
+        len(token) > 3
+        and token not in NUMBER_WORDS
+        and not any(_within_one(_stem(token), candidate) for candidate in corpus_terms)
+        for token in query_tokens
+        if token not in STOP_WORDS and not token.isdigit()
+    ):
         return False
-    if re.search(r"\b(compare|versus|vs\.?|difference|both)\b", query, re.I):
-        return True
+    if subqueries and re.search(r"\b(compare|versus|vs\.?|difference|both)\b", query, re.I):
+        return all(
+            has_sufficient_evidence(
+                subquery,
+                items,
+                corpus,
+                pair_fraction,
+                term_count,
+                pair_window,
+            )
+            for subquery in subqueries
+        )
 
     document_terms = [
         _tokens(f"{item.section_path} {_body(item)}") for item in items
@@ -100,26 +176,46 @@ def has_sufficient_evidence(query: str, items, corpus=None, pair_fraction: float
         term: (1.0 + (total_docs / max(1, corpus_frequency.get(term, 0))))
         for term in terms
     }
-    high_idf = {term for term in terms if idf.get(term, 0.0) >= 10.0}
-    ordered = [term for term in terms if term in high_idf]
+    selected = sorted(
+        enumerate(dict.fromkeys(terms)),
+        key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
+    )[:max(1, term_count)]
+    selected_positions = sorted(position for position, _ in selected)
+    ordered = [terms[position] for position in selected_positions]
+    if len(ordered) == 1:
+        return any(
+            _term_matches(ordered[0], term)
+            for tokens in document_terms
+            for term in tokens
+        )
     pairs = list(zip(ordered, ordered[1:]))
-    if not pairs:
-        return True
-    satisfied = 0
-    for left, right in pairs:
-        found = False
+    pair_scores = sorted(
+        pairs,
+        key=lambda pair: -(idf.get(pair[0], 0.0) + idf.get(pair[1], 0.0)),
+    )
+    found = False
+    evidence_window = pair_window + (
+        15 if any(token.isdigit() or token in NUMBER_WORDS for token in query_tokens) else 0
+    )
+    for left, right in pair_scores:
         for tokens in document_terms:
-            for start, token in enumerate(tokens):
-                if token != left:
-                    continue
-                positions = [i for i, value in enumerate(tokens) if value == right]
-                if any(abs(position - start) <= 10 for position in positions):
-                    found = True
-                    break
-            if found:
+            left_positions = [
+                i for i, value in enumerate(tokens)
+                if _term_matches(value, left)
+            ]
+            right_positions = [
+                i for i, value in enumerate(tokens)
+                if _term_matches(value, right)
+            ]
+            if any(abs(left_position - right_position) <= evidence_window
+                   for left_position in left_positions
+                   for right_position in right_positions):
+                found = True
                 break
-        satisfied += int(found)
-    return satisfied / len(pairs) >= pair_fraction
+        if found:
+            break
+    satisfied = int(found)
+    return satisfied / max(1, min(1, len(pair_scores))) >= pair_fraction
 
 
 def confidence(query: str, items) -> float:
@@ -153,7 +249,7 @@ def validate_citations_and_numbers(text: str, citations, context) -> bool:
     return all(token.lower().replace(",", "") in cited_text.replace(",", "") for token in asserted)
 
 
-def clarification_facets(items, limit: int = 4) -> list[str]:
+def clarification_facets(items, limit: int = 4, head_noun: str = "limit") -> list[str]:
     facets: list[str] = []
     seen: set[tuple[str, str]] = set()
     for item in items:
@@ -164,21 +260,18 @@ def clarification_facets(items, limit: int = 4) -> list[str]:
         seen.add(key)
         title = chunk.doc_title
         section = chunk.section_path
-        lower = f"{title} {section}".lower()
-        if "expense" in lower:
-            label = f"expense category limits ({title} §3)"
-        elif "travel" in lower:
-            label = f"hotel nightly caps and per diems ({title} §4/§6)"
-        elif "discount" in lower:
-            label = f"discount cap and approval bands ({title})"
-        elif "pricing" in lower or "price" in lower:
-            label = f"plan seat pricing ({title} §2/§3)"
-        elif "confidential" in lower or "non-disclosure" in lower:
-            label = f"confidentiality survival period ({title} §4)"
-        elif "benefit" in lower:
-            label = f"benefit reimbursement limits ({title} §6)"
-        else:
-            label = f"{section} ({title})"
+        heading = re.sub(r"^\s*\d+(?:\.\d+)*\s*", "", section).strip()
+        words = [
+            re.sub(r"ies$", "y", word.lower())
+            for word in re.findall(r"[A-Za-z]+", heading)
+        ]
+        description = " ".join(words) or head_noun
+        matches_head = any(_stem(word) == _stem(head_noun) for word in words)
+        label_description = description if matches_head else f"{head_noun} in {description}"
+        label = f"{label_description} ({title}"
+        if chunk.section_number:
+            label += f" §{chunk.section_number}"
+        label += ")"
         if label in facets:
             continue
         facets.append(label)

@@ -7,7 +7,11 @@ from .providers.llm import LLMProvider
 
 _GENERATION_STOP_WORDS = {
     "about", "after", "and", "are", "does", "for", "from", "get", "how",
-    "many", "what", "when", "where", "which", "with", "the", "this",
+    "many", "per", "what", "when", "where", "which", "with", "the", "this",
+}
+_GENERIC_METADATA_TERMS = {
+    "agreement", "expense", "plan", "policy", "reimbursement", "service",
+    "tier", "vendor",
 }
 
 
@@ -54,7 +58,10 @@ def _answerable_unit(unit: str) -> bool:
     normalized = unit.casefold()
     return not (
         normalized.startswith("sheet:")
-        or normalized.startswith(("tier price", "feature starter"))
+        or normalized.startswith((
+            "tier price", "feature starter", "category standard limit",
+            "expense amount required approver", "required approver",
+        ))
         or "sales operations" in normalized
         or re.fullmatch(r"[\s|:–—-]+", unit)
     )
@@ -66,7 +73,17 @@ def _word_forms(text: str) -> set[str]:
         word[:-1] for word in words
         if len(word) > 4 and word.endswith("s")
     }
-    return set(words) | stems | {word[:6] for word in words if len(word) >= 6}
+    number_words = {
+        "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
+        "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
+        "ten": "10",
+    }
+    return (
+        set(words)
+        | stems
+        | {word[:6] for word in words if len(word) >= 6}
+        | {number_words[word] for word in words if word in number_words}
+    )
 
 
 def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
@@ -81,14 +98,15 @@ def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
     for item in items:
         metadata = re.findall(
             r"[a-z0-9]+",
-            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title}".lower(),
+            f"{item.filename.rsplit('.', 1)[0]} {item.chunk.doc_title} "
+            f"{item.section_path}".lower(),
         )
         for term in metadata:
             for query_term in raw_focus:
                 if (
                     len(query_term) >= 3
                     and query_term not in _GENERATION_STOP_WORDS
-                    and query_term not in {"policy", "agreement"}
+                    and query_term not in _GENERIC_METADATA_TERMS
                     and query_term in term
                 ):
                     explicit.append((focus.lower().rfind(query_term), item))
@@ -100,7 +118,8 @@ def _focus_items(focus: str, items: list[Retrieved]) -> list[Retrieved]:
             if item_position == position and item.chunk_id not in seen:
                 selected.append(item)
                 seen.add(item.chunk_id)
-        return selected
+        selected_docs = {item.doc_id for item in selected}
+        return [item for item in items if item.doc_id in selected_docs]
     focus_terms = {
         term[:5] for term in _word_forms(focus)
         if len(term) >= 4 and term not in _GENERATION_STOP_WORDS
@@ -150,6 +169,20 @@ def _candidate_score(
         or (len(term) >= 6 and term[:6] in {word[:6] for word in unit_terms})
     )
     overlap = weighted_match / max(weighted_total, 1.0)
+    metadata_terms = _word_forms(
+        f"{item.filename} {item.chunk.doc_title} {item.section_path}"
+    )
+    metadata_match = sum(
+        idf.get(term, 1.0)
+        for term in set(query_terms)
+        if term in metadata_terms
+    ) / max(weighted_total, 1.0)
+    entity_terms = {
+        term.casefold()
+        for term in re.findall(r"\b[A-Z][A-Za-z0-9-]*\b", question)
+        if term.casefold() not in _GENERATION_STOP_WORDS
+    }
+    entity_match = 0.55 if entity_terms & unit_terms else 0.0
     asks_value = bool(re.search(
         r"\b(how much|how many|what price|what cost|cost|price|cap|limit|"
         r"percentage|when|rate)\b", question, re.I
@@ -172,7 +205,14 @@ def _candidate_score(
         for low, high in re.findall(r"(\d+)\s*[–-]\s*(\d+)", unit):
             if int(low) <= number <= int(high):
                 numeric_match = max(numeric_match, 0.55)
-    return overlap + answer_bonus + numeric_match + item.score * 0.35
+    return (
+        overlap
+        + metadata_match * 0.45
+        + entity_match
+        + answer_bonus
+        + numeric_match
+        + item.score * 0.20
+    )
 
 
 def _usage(question: str, context: list[Retrieved], text: str,

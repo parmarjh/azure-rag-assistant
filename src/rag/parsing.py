@@ -64,6 +64,41 @@ def _sections(text: str, pages: list[int] | None = None) -> list[Section]:
     return sections or [Section("Document", text)]
 
 
+def _xlsx_cell(value, header: str) -> str:
+    if isinstance(value, (int, float)) and "%" in header and 0 <= value <= 1:
+        return f"{value:.0%}"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value) if value is not None else ""
+
+
+def _xlsx_rows(sheet) -> list[str]:
+    rows: list[str] = []
+    headers: list[str] | None = None
+    for row in sheet.iter_rows(values_only=True):
+        values = list(row)
+        if not any(value is not None for value in values):
+            continue
+        text_values = [str(value).strip() for value in values if value is not None]
+        if (
+            len(text_values) > 1
+            and any("%" in value or "price" in value.lower() for value in text_values)
+        ):
+            headers = text_values
+            rows.append("| " + " | ".join(text_values) + " |")
+            continue
+        if headers:
+            fields = [
+                f"{header}: {_xlsx_cell(value, header)}"
+                for header, value in zip(headers, values)
+                if value is not None
+            ]
+            rows.append("; ".join(fields))
+        else:
+            rows.append("| " + " | ".join(_xlsx_cell(value, "") for value in values) + " |")
+    return rows
+
+
 def parse_file(path: str | Path, department: str | None = None) -> Document:
     p = Path(path)
     department = department or p.parent.name
@@ -84,12 +119,7 @@ def parse_file(path: str | Path, department: str | None = None) -> Document:
         book = openpyxl.load_workbook(p, data_only=True)
         blocks = []
         for sheet in book.worksheets:
-            rows = []
-            for row in sheet.iter_rows(values_only=True):
-                vals = [str(x) if x is not None else "" for x in row]
-                if any(vals):
-                    rows.append("| " + " | ".join(vals) + " |")
-            blocks.append(f"Sheet: {sheet.title}\n" + "\n".join(rows))
+            blocks.append(f"Sheet: {sheet.title}\n" + "\n".join(_xlsx_rows(sheet)))
         text = "\n\n".join(blocks)
     else:
         text = p.read_text(errors="replace")

@@ -82,7 +82,12 @@ def test_improved_chunk_headers_tables_and_overlap():
     assert all(chunks[i].content.split()[-5:] for i in range(len(chunks)))
     discounts = next(d for d in docs if d.filename == "Discounts.xlsx")
     table_chunks = improved_chunks(discounts)
-    assert any("5–24 seats" in chunk.content and "| 5 |" in chunk.content for chunk in table_chunks)
+    assert any(
+        "Seat Count Tier: 5–24 seats" in chunk.content
+        and "Min Seats: 5" in chunk.content
+        and "Discount %: 0%" in chunk.content
+        for chunk in table_chunks
+    )
     section = Section("1 Topic", " ".join(f"word{i}" for i in range(180)))
     synthetic = Document("synthetic", "synthetic.txt", "", "Synthetic", "IT", sections=[section])
     overlapping = improved_chunks(synthetic, target=100, overlap=20)
@@ -155,3 +160,51 @@ def test_numeric_post_validation_rejects_unsupported_number():
     assert validate_citations_and_numbers("Enterprise costs $109 [1]", [citation], [item])
     assert not validate_citations_and_numbers("Enterprise costs $999 [1]", [citation], [item])
     assert not validate_citations_and_numbers("Enterprise costs $109 [2]", [citation], [item])
+
+
+def test_answerable_sufficiency_regressions():
+    pipeline = RagPipeline.from_config(get_config())
+    pipeline.ingest(str(KB))
+    cases = [
+        ("What is the maximum company 401(k) match?", "Benefits.pdf"),
+        ("How much tuition reimbursement can employees receive?", "Benefits.pdf"),
+        ("How much notice is required for five-day PTO?", "LeavePolicy.pdf"),
+        ("Do standard employees have to rotate their passwords on a schedule?", "PasswordPolicy.docx"),
+        ("Are gym fees reimbursable while I am travelling?", "ExpensePolicy.pdf"),
+        ("What approval is required for a $6,000 software purchase?", "ExpensePolicy.pdf"),
+    ]
+    for question, filename in cases:
+        answer = pipeline.answer(question)
+        assert not answer.abstained, question
+        assert any(citation.filename == filename for citation in answer.citations), question
+
+    session = "starter-follow-up"
+    pipeline.answer("What is the price per seat for the Enterprise plan?", session_id=session)
+    follow_up = pipeline.answer("What about the Starter tier?", session_id=session)
+    assert not follow_up.abstained
+    assert any(citation.filename == "Pricing2026.pdf" for citation in follow_up.citations)
+
+
+def test_sufficiency_negatives_and_comparison_gate():
+    pipeline = RagPipeline.from_config(get_config())
+    pipeline.ingest(str(KB))
+    for question in (
+        "Who is the Chief Executive Officer of Northwind Traders?",
+        "What is the uptime SLA credit percentage if we miss the Enterprise SLA?",
+        "What is Northwind Traders' stock ticker symbol?",
+        "What is the refund policy for Germany?",
+        "Compare the stock ticker symbol versus the chief executive officer.",
+    ):
+        assert pipeline.answer(question).abstained
+    assert pipeline.answer("What is the limit?").clarification
+
+
+def test_spelling_variant_and_generic_facets():
+    pipeline = RagPipeline.from_config(get_config())
+    pipeline.ingest(str(KB))
+    travelling = pipeline.answer("Are gym fees reimbursable while I am travelling?")
+    assert not travelling.abstained
+    assert any(citation.filename == "ExpensePolicy.pdf" for citation in travelling.citations)
+    clarification = pipeline.answer("What is the limit?")
+    assert clarification.clarification
+    assert "Business Expense & Reimbursement Policy" in clarification.clarification

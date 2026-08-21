@@ -134,6 +134,7 @@ def understand(
     rewritten = _condense(original, history, entities)
     entities.update(_slots(rewritten))
     comparison = bool(_COMPARISON.search(rewritten))
+    head = _HEADS.search(rewritten)
     version_intent = bool(
         re.search(r"\b(19|20)\d{2}\b|\b(previous|prior|old|historical)\b", rewritten, re.I)
     )
@@ -151,6 +152,7 @@ def understand(
         "entities": entities,
         "version_intent": version_intent,
         "comparison": comparison,
+        "head_noun": head.group(1).lower() if head else None,
         "ambiguous": ambiguous_head and not history,
         "ambiguous_head": ambiguous_head,
         "subqueries": decompose(rewritten, known_entities),
