@@ -161,7 +161,10 @@ class RagPipeline:
             and len(distinct_topics) >= 2
             and not history
         ):
-            facets = clarification_facets(candidates, head_noun=understanding["head_noun"] or "limit")
+            facets = clarification_facets(
+                candidates,
+                head_noun=understanding["head_noun"] or "limit",
+            )
             text = "Could you clarify which limit you mean? I found: " + "; ".join(facets[:4])
             prompt_tokens = len(rewritten.split()) + sum(item.chunk.token_count for item in candidates)
             usage = Usage(
@@ -183,9 +186,7 @@ class RagPipeline:
                 rewritten,
                 candidates,
                 self.chunks,
-                self.config.evidence_pair_fraction,
                 self.config.evidence_term_count,
-                self.config.evidence_pair_window,
                 understanding["subqueries"] if understanding["comparison"] else None,
             )
         )

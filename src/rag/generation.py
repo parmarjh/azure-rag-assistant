@@ -199,18 +199,21 @@ def _candidate_score(
         for value in re.findall(r"\b\d[\d,]*\b", question)
     ]
     numeric_match = 0.0
+    range_match = 0.0
     for number in query_numbers:
         if re.search(rf"\b{number:,}\b|\b{number}\b", unit):
             numeric_match = max(numeric_match, 0.55)
         for low, high in re.findall(r"(\d+)\s*[–-]\s*(\d+)", unit):
             if int(low) <= number <= int(high):
                 numeric_match = max(numeric_match, 0.55)
+                range_match = max(range_match, 0.90)
     return (
         overlap
         + metadata_match * 0.45
         + entity_match
         + answer_bonus
         + numeric_match
+        + range_match
         + item.score * 0.20
     )
 
@@ -242,7 +245,14 @@ def _local_generate(
         candidate_units = [
             (unit, item)
             for item in focus_items
-            for unit in _units(body_text(item))
+            for unit in (
+                (
+                    [item.section_path]
+                    if re.search(r"\d+\s*[–-]\s*\d+", item.section_path)
+                    else []
+                )
+                + _units(body_text(item))
+            )
             if _answerable_unit(unit)
         ]
         corpus_units = [unit for unit, _ in candidate_units]

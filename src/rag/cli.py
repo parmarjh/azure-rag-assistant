@@ -22,6 +22,7 @@ def main():
     ask.add_argument("question")
     ask.add_argument("--mode", choices=["baseline", "improved"], default="improved")
     ask.add_argument("--session-id")
+    ask.add_argument("--show-retrieved", action="store_true")
     chat = sub.add_parser("chat")
     chat.add_argument("--mode", choices=["baseline", "improved"], default="improved")
     sub.add_parser("reindex")
@@ -45,6 +46,13 @@ def main():
             print(f"Clarification: {result.clarification}")
         print(f"Mode: {result.mode}")
         print(f"Provider: {result.provider}")
+        if args.show_retrieved:
+            print("Retrieved:")
+            for item in result.retrieved:
+                print(f"  {item.filename} — {item.section_path} — {item.score:.3f}")
+            print("Latency:")
+            for stage, elapsed in result.latency_ms.items():
+                print(f"  {stage}: {elapsed:.3f} ms")
     elif args.command == "chat":
         print("Interactive chat. Press Ctrl-D to exit.")
         p = _pipeline(args.mode)

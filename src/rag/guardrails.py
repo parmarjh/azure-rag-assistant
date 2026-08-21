@@ -9,11 +9,8 @@ STOP_WORDS = {
     "many", "of", "our", "per", "the", "this", "to", "what", "which",
     "about", "can", "does", "if", "it", "on", "someone", "that", "we",
     "have", "has", "had", "was", "were", "who", "whom", "much", "miss",
-    "compare", "difference", "both", "versus", "vs", "policy",
-    "while", "company", "standard", "required", "receive", "reimbursable",
-    "purchase", "their",
-    "based", "calendar", "claim", "employee", "give", "need", "request",
-    "year",
+    "compare", "difference", "both", "versus", "vs",
+    "while", "their", "based", "give", "need", "request", "receive",
 }
 NUMBER_WORDS = {
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
@@ -41,6 +38,11 @@ ALIASES = {
     "rotate": "rotation",
     "rotates": "rotation",
     "rotating": "rotation",
+    "lockout": "lock",
+}
+ANSWER_HEADS = {
+    "amount", "cap", "cost", "deadline", "limit", "long", "period", "percentage",
+    "price", "rate", "threshold",
 }
 
 
@@ -77,6 +79,15 @@ def _term_matches(left: str, right: str) -> bool:
     )
 
 
+def _unknown_term_matches(left: str, right: str) -> bool:
+    return left == right or (
+        abs(len(left) - len(right)) == 1
+        and len(left) > 3
+        and len(right) > 3
+        and _within_one(left, right)
+    )
+
+
 def _body(item) -> str:
     if hasattr(item, "chunk"):
         return body_text(item)
@@ -89,13 +100,14 @@ def _body(item) -> str:
 
 def _evidence_units(item) -> list[list[str]]:
     body = _body(item)
+    prefix = f"{item.filename} {item.chunk.doc_title} {item.section_path}"
     if "|" in body or "Sheet:" in body:
         return [
-            _tokens(f"{item.section_path} {line}")
+            _tokens(f"{prefix} {line}")
             for line in body.splitlines()
             if line.strip()
         ]
-    return [_tokens(f"{item.section_path} {body}")]
+    return [_tokens(f"{prefix} {body}")]
 
 
 def scrub(text: str) -> str:
@@ -130,16 +142,19 @@ def has_sufficient_evidence(
     query: str,
     items,
     corpus=None,
-    pair_fraction: float = 0.5,
-    term_count: int = 3,
-    pair_window: int = 10,
+    term_count: int = 2,
     subqueries: list[str] | None = None,
 ) -> bool:
     query_tokens = re.findall(r"[a-z0-9]+", query.lower())
     terms = [
         _stem(token)
         for token in query_tokens
-        if token not in STOP_WORDS and len(token) >= 3 and not token.isdigit()
+        if (
+            token not in STOP_WORDS
+            and len(token) >= 3
+            and not token.isdigit()
+            and _stem(token) not in ANSWER_HEADS
+        )
     ]
     if not terms or not items:
         return False
@@ -153,7 +168,10 @@ def has_sufficient_evidence(
     if any(
         len(token) > 3
         and token not in NUMBER_WORDS
-        and not any(_within_one(_stem(token), candidate) for candidate in corpus_terms)
+        and not any(
+            _unknown_term_matches(_stem(token), candidate)
+            for candidate in corpus_terms
+        )
         for token in query_tokens
         if token not in STOP_WORDS and not token.isdigit()
     ):
@@ -164,9 +182,7 @@ def has_sufficient_evidence(
                 subquery,
                 items,
                 corpus,
-                pair_fraction,
                 term_count,
-                pair_window,
             )
             for subquery in subqueries
         )
@@ -199,27 +215,73 @@ def has_sufficient_evidence(
     selected = sorted(
         enumerate(dict.fromkeys(terms)),
         key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
-    )[:max(1, min(2, term_count))]
+    )[:max(1, term_count)]
     selected_positions = sorted(position for position, _ in selected)
     ordered = [terms[position] for position in selected_positions]
+
+    def cooccurs(selected_terms: list[str]) -> bool:
+        return any(
+            all(
+                any(
+                    _term_matches(value, selected_term)
+                    for value in tokens
+                )
+                for selected_term in selected_terms
+            )
+            for units in document_terms
+            for tokens in units
+        )
+
     if len(ordered) == 1:
         return any(
             _term_matches(ordered[0], term)
-            for tokens in document_terms
+            for units in document_terms
+            for tokens in units
             for term in tokens
         )
-    found = any(
-        all(
-            any(
-                _term_matches(value, selected_term)
-                for value in tokens
+    found = cooccurs(ordered)
+    value_query = bool(re.search(
+        r"\b(?:how much|how many|price|cost|amount|maximum|rate|approval|approve|required)\b"
+        r"|\$\s*\d",
+        query,
+        re.I,
+    ))
+    if not found and term_count == 2 and value_query:
+        ranked_terms = [
+            term for _, term in sorted(
+                enumerate(dict.fromkeys(terms)),
+                key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
             )
-            for selected_term in ordered
+        ]
+        for index, left in enumerate(ranked_terms):
+            for right in ranked_terms[index + 1:]:
+                if cooccurs([left, right]):
+                    ordered = [left, right]
+                    found = True
+                    break
+            if found:
+                break
+    named_terms = [
+        _stem(token)
+        for index, token in enumerate(re.findall(r"[A-Za-z0-9]+", query))
+        if index > 0 and token[0].isupper() and len(token) >= 3
+    ]
+    if named_terms and re.search(r"\b(?:tier|plan)\b", query, re.I):
+        value_pattern = re.compile(r"\$|%|\b\d+(?:\.\d+)?\b")
+        named_evidence = any(
+            all(
+                any(
+                    _term_matches(named, value)
+                    for value in _tokens(_body(item))
+                )
+                for named in named_terms
+            )
+            and bool(value_pattern.search(_body(item)))
+            and bool(re.search(r"\b(?:tiers?|plans?)\b", item.section_path, re.I))
+            for item in items
         )
-        for units in document_terms
-        for tokens in units
-    )
-    return int(found) >= pair_fraction
+        found = found and named_evidence
+    return found
 
 
 def confidence(query: str, items) -> float:
@@ -253,8 +315,12 @@ def validate_citations_and_numbers(text: str, citations, context) -> bool:
     return all(token.lower().replace(",", "") in cited_text.replace(",", "") for token in asserted)
 
 
-def clarification_facets(items, limit: int = 4, head_noun: str = "limit") -> list[str]:
-    ranked: list[tuple[int, object]] = []
+def clarification_facets(
+    items,
+    limit: int = 4,
+    head_noun: str = "limit",
+) -> list[str]:
+    ranked: list[tuple[float, object]] = []
     seen: set[tuple[str, str]] = set()
     generic_sections = {"purpose", "overview", "introduction", "scope", "definitions"}
     head_terms = {
@@ -309,7 +375,12 @@ def clarification_facets(items, limit: int = 4, head_noun: str = "limit") -> lis
             continue
         if not near_value:
             continue
-        score = int(bool(head_terms and head_positions)) * 2 + int(bool(value_positions))
+        relevance = item.score
+        if head_terms and head_positions:
+            relevance += 0.20
+        if value_positions:
+            relevance += 0.05
+        score = relevance
         ranked.append((score, item))
     facets: list[str] = []
     for _, item in sorted(ranked, key=lambda pair: -pair[0]):

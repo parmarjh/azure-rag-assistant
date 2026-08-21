@@ -229,3 +229,31 @@ def test_spelling_variant_and_generic_facets():
     clarification = pipeline.answer("What is the limit?")
     assert clarification.clarification
     assert "Expense Categories & Limits" in clarification.clarification
+
+
+def test_non_dataset_questions_remain_grounded():
+    pipeline = RagPipeline.from_config(get_config())
+    pipeline.ingest(str(KB))
+
+    standard = pipeline.answer("What is the Standard tier price per seat?")
+    assert standard.abstained
+
+    starter = pipeline.answer("What is the Starter tier price per seat?")
+    assert not starter.abstained
+    assert "$32" in starter.text
+
+    nda = pipeline.answer("How long is the confidentiality survival period in the NDA?")
+    assert not nda.abstained
+    assert any(citation.filename == "NDA.docx" for citation in nda.citations)
+
+    lockout = pipeline.answer("What is the password lockout threshold?")
+    assert not lockout.clarification
+    assert not lockout.abstained
+    assert "5 consecutive failed login attempts" in lockout.text
+
+    threshold = pipeline.answer("What is the threshold?")
+    assert threshold.clarification
+
+    service_tier = pipeline.answer("How many PTO days for 7 years of service?")
+    assert not service_tier.abstained
+    assert "23 days" in service_tier.text

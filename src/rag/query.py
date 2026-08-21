@@ -138,10 +138,27 @@ def understand(
     version_intent = bool(
         re.search(r"\b(19|20)\d{2}\b|\b(previous|prior|old|historical)\b", rewritten, re.I)
     )
+    head_match = _HEADS.search(rewritten)
+    query_words = re.findall(r"[a-z]+", rewritten.lower())
+    head_words = re.findall(r"[a-z]+", head_match.group(0)) if head_match else []
+    modifiers = [
+        word for word in query_words
+        if word not in {"what", "is", "the", "a", "an", "how", "much", "can", "i", "on"}
+        and word not in head_words
+        and len(word) > 1
+    ]
+    disambiguating_modifiers = [
+        word for word in modifiers if word not in {"approval"}
+    ]
     ambiguous_head = (
-        bool(_HEADS.search(rewritten))
+        bool(head_match)
         and len(rewritten.split()) <= 8
         and not any(entities.get(key) for key in ("plan", "department", "year"))
+        and (
+            len(head_words) > 1
+            or not disambiguating_modifiers
+            or disambiguating_modifiers == ["approval"]
+        )
     )
     entities.setdefault(
         "topic",
