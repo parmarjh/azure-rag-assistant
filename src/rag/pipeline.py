@@ -187,6 +187,7 @@ class RagPipeline:
                 candidates,
                 self.chunks,
                 self.config.evidence_term_count,
+                self.config.evidence_mass_fraction,
                 understanding["subqueries"] if understanding["comparison"] else None,
             )
         )
@@ -219,8 +220,6 @@ class RagPipeline:
                 citations,
                 candidates,
                 query=rewritten,
-                corpus=self.chunks,
-                term_count=self.config.evidence_term_count,
             ):
                 with Span("generate_retry") as span:
                     text, citations, usage = generate(
@@ -243,8 +242,6 @@ class RagPipeline:
                     citations,
                     candidates,
                     query=rewritten,
-                    corpus=self.chunks,
-                    term_count=self.config.evidence_term_count,
                 ):
                     text = "I don't have sufficient supported information in the knowledge base."
                     citations, abstained = [], True

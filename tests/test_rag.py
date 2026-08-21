@@ -168,7 +168,6 @@ def test_numeric_post_validation_rejects_unsupported_number():
         [citation],
         [item],
         query="What is the Standard tier price per seat?",
-        corpus=[item.chunk],
     )
 
 
@@ -177,8 +176,11 @@ def test_answerable_sufficiency_regressions():
     pipeline.ingest(str(KB))
     cases = [
         ("What is the maximum company 401(k) match?", "Benefits.pdf"),
+        ("How much tuition reimbursement can an employee claim per calendar year?", "Benefits.pdf"),
         ("How much notice do I need to give for a five-day PTO request?", "LeavePolicy.pdf"),
         ("Do standard employees have to rotate their passwords on a schedule?", "PasswordPolicy.docx"),
+        ("Can I get a gym membership reimbursed, and what about gym fees while I am travelling?", "ExpensePolicy.pdf"),
+        ("Who needs to approve a $6,000 software subscription purchase?", "ExpensePolicy.pdf"),
     ]
     for question, filename in cases:
         answer = pipeline.answer(question)
@@ -193,13 +195,6 @@ def test_answerable_sufficiency_regressions():
         "TravelPolicy.docx",
         "ExpensePolicy.pdf",
     }
-
-    residuals = (
-        "How much tuition reimbursement can an employee claim per calendar year?",
-        "Can I get a gym membership reimbursed, and what about gym fees while I am travelling?",
-        "What approval is required for a $6,000 software purchase?",
-    )
-    assert all(pipeline.answer(question).abstained for question in residuals)
 
     session = "starter-follow-up"
     pipeline.answer("What is the cancellation policy for the Enterprise plan?", session_id=session)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 
 from .generation import body_text
@@ -44,6 +45,10 @@ ANSWER_HEADS = {
     "amount", "cap", "cost", "deadline", "limit", "long", "period", "percentage",
     "price", "rate", "threshold",
 }
+
+
+def _is_content_token(token: str) -> bool:
+    return token not in STOP_WORDS and _stem(token) not in STOP_WORDS
 
 
 def _stem(term: str) -> str:
@@ -110,13 +115,17 @@ def _evidence_units(item) -> list[list[str]]:
     return [_tokens(f"{prefix} {body}")]
 
 
-def _selected_concepts(query: str, corpus, term_count: int) -> list[str]:
+def _selected_concept_weights(
+    query: str,
+    corpus,
+    term_count: int,
+) -> list[tuple[str, float]]:
     query_tokens = re.findall(r"[a-z0-9]+", query.lower())
     terms = [
         _stem(token)
         for token in query_tokens
         if (
-            token not in STOP_WORDS
+            _is_content_token(token)
             and len(token) >= 3
             and not token.isdigit()
             and _stem(token) not in ANSWER_HEADS
@@ -144,27 +153,62 @@ def _selected_concepts(query: str, corpus, term_count: int) -> list[str]:
         f"{item.section_path} {_body(item)}"
     ) for item in corpus]
     idf = {
-        term: 1.0 + len(corpus_documents) / max(
-            1,
-            sum(canonical(term) in set(tokens) for tokens in corpus_documents),
+        term: 1.0 + math.log(
+            (len(corpus_documents) + 1)
+            / (
+                sum(
+                    canonical(term) in set(tokens)
+                    for tokens in corpus_documents
+                )
+                + 1
+            )
         )
         for term in set(terms)
     }
     selected = sorted(
-        dict.fromkeys(terms),
-        key=lambda term: -idf.get(term, 0.0),
+        enumerate(dict.fromkeys(terms)),
+        key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
     )[:max(1, term_count)]
-    return selected
+    return [(term, idf[term]) for _, term in selected]
 
 
 def _query_entities(query: str) -> list[str]:
     return [
         _stem(token.casefold())
-        for token in re.findall(r"[A-Za-z0-9]+", query)
+        for match in re.finditer(r"[A-Za-z0-9]+", query)
+        for token in [match.group()]
         if token[0].isupper()
         and len(token) >= 3
-        and token.casefold() not in STOP_WORDS
+        and _is_content_token(token.casefold())
+        and not (
+            not query[:match.start()].strip()
+            or query[:match.start()].rstrip()[-1:] in ".?!"
+        )
     ]
+
+
+def _query_entity_phrases(query: str) -> list[list[str]]:
+    matches = list(re.finditer(r"[A-Za-z0-9]+", query))
+    phrases = []
+    current = []
+    for match in matches:
+        token = match.group()
+        valid = (
+            token[0].isupper()
+            and len(token) >= 3
+            and _is_content_token(token.casefold())
+            and query[:match.start()].strip()
+            and query[:match.start()].rstrip()[-1:] not in ".?!"
+        )
+        if valid:
+            current.append(_stem(token.casefold()))
+        else:
+            if len(current) > 1:
+                phrases.append(current)
+            current = []
+    if len(current) > 1:
+        phrases.append(current)
+    return phrases
 
 
 def scrub(text: str) -> str:
@@ -200,6 +244,7 @@ def has_sufficient_evidence(
     items,
     corpus=None,
     term_count: int = 2,
+    mass_fraction: float = 0.60,
     subqueries: list[str] | None = None,
 ) -> bool:
     query_tokens = re.findall(r"[a-z0-9]+", query.lower())
@@ -207,7 +252,7 @@ def has_sufficient_evidence(
         _stem(token)
         for token in query_tokens
         if (
-            token not in STOP_WORDS
+            _is_content_token(token)
             and len(token) >= 3
             and not token.isdigit()
             and _stem(token) not in ANSWER_HEADS
@@ -230,7 +275,7 @@ def has_sufficient_evidence(
             for candidate in corpus_terms
         )
         for token in query_tokens
-        if token not in STOP_WORDS and not token.isdigit()
+        if _is_content_token(token) and not token.isdigit()
     ):
         return False
     if subqueries and re.search(r"\b(compare|versus|vs\.?|difference|both)\b", query, re.I):
@@ -240,35 +285,29 @@ def has_sufficient_evidence(
                 items,
                 corpus,
                 term_count,
+                mass_fraction,
             )
             for subquery in subqueries
         )
 
     document_terms = [_evidence_units(item) for item in items]
-    ordered = _selected_concepts(query, corpus, term_count)
-
-    def cooccurs(selected_terms: list[str]) -> bool:
-        return any(
-            all(
-                any(
-                    _term_matches(value, selected_term)
-                    for value in tokens
-                )
-                for selected_term in selected_terms
+    weighted_concepts = _selected_concept_weights(query, corpus, term_count)
+    if not weighted_concepts:
+        return False
+    total_mass = sum(weight for _, weight in weighted_concepts)
+    required_mass = total_mass * mass_fraction
+    return any(
+        sum(
+            weight
+            for concept, weight in weighted_concepts
+            if any(
+                _term_matches(concept, value)
+                for tokens in units
+                for value in tokens
             )
-            for units in document_terms
-            for tokens in units
-        )
-
-    if len(ordered) == 1:
-        return any(
-            _term_matches(ordered[0], term)
-            for units in document_terms
-            for tokens in units
-            for term in tokens
-        )
-    found = cooccurs(ordered)
-    return found
+        ) >= required_mass
+        for units in document_terms
+    )
 
 
 def confidence(query: str, items) -> float:
@@ -287,8 +326,6 @@ def validate_citations_and_numbers(
     citations,
     context,
     query: str | None = None,
-    corpus=None,
-    term_count: int = 2,
 ) -> bool:
     """Ensure references resolve and every asserted numeric token is grounded."""
     citation_ids = {citation.chunk_id for citation in citations}
@@ -309,18 +346,23 @@ def validate_citations_and_numbers(
         for number in references
         if citation_by_number[number].chunk_id in context_by_id
     )
-    if query and corpus:
-        concepts = _selected_concepts(query, corpus, term_count)
-        concepts.extend(
-            entity for entity in _query_entities(query)
-            if entity not in concepts
-        )
+    if query:
+        concepts = _query_entities(query)
         cited_tokens = _tokens(cited_text)
         if any(
             not any(_term_matches(concept, token) for token in cited_tokens)
             for concept in concepts
         ):
             return False
+        for phrase in _query_entity_phrases(query):
+            if not any(
+                all(
+                    _term_matches(expected, actual)
+                    for expected, actual in zip(phrase, cited_tokens[index:])
+                )
+                for index in range(len(cited_tokens) - len(phrase) + 1)
+            ):
+                return False
     stripped = re.sub(r"\[\d+\]", "", text)
     asserted = re.findall(r"\$?\d+(?:,\d{3})*(?:\.\d+)?%?", stripped)
     return all(token.lower().replace(",", "") in cited_text.replace(",", "") for token in asserted)
