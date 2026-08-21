@@ -215,7 +215,12 @@ class RagPipeline:
             latency["generate"] = span.elapsed_ms
             abstained = False
             if self.config.enable_guardrails and not validate_citations_and_numbers(
-                text, citations, candidates
+                text,
+                citations,
+                candidates,
+                query=rewritten,
+                corpus=self.chunks,
+                term_count=self.config.evidence_term_count,
             ):
                 with Span("generate_retry") as span:
                     text, citations, usage = generate(
@@ -233,7 +238,14 @@ class RagPipeline:
                         ),
                     )
                 latency["generate"] += span.elapsed_ms
-                if not validate_citations_and_numbers(text, citations, candidates):
+                if not validate_citations_and_numbers(
+                    text,
+                    citations,
+                    candidates,
+                    query=rewritten,
+                    corpus=self.chunks,
+                    term_count=self.config.evidence_term_count,
+                ):
                     text = "I don't have sufficient supported information in the knowledge base."
                     citations, abstained = [], True
 

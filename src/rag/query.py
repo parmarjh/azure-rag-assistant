@@ -147,17 +147,13 @@ def understand(
         and word not in head_words
         and len(word) > 1
     ]
-    disambiguating_modifiers = [
-        word for word in modifiers if word not in {"approval"}
-    ]
     ambiguous_head = (
         bool(head_match)
         and len(rewritten.split()) <= 8
         and not any(entities.get(key) for key in ("plan", "department", "year"))
         and (
             len(head_words) > 1
-            or not disambiguating_modifiers
-            or disambiguating_modifiers == ["approval"]
+            or not modifiers
         )
     )
     entities.setdefault(

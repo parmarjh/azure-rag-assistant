@@ -245,14 +245,7 @@ def _local_generate(
         candidate_units = [
             (unit, item)
             for item in focus_items
-            for unit in (
-                (
-                    [item.section_path]
-                    if re.search(r"\d+\s*[–-]\s*\d+", item.section_path)
-                    else []
-                )
-                + _units(body_text(item))
-            )
+            for unit in _units(body_text(item))
             if _answerable_unit(unit)
         ]
         corpus_units = [unit for unit, _ in candidate_units]

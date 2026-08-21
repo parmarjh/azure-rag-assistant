@@ -51,7 +51,11 @@ def _sections(text: str, pages: list[int] | None = None) -> list[Section]:
         if not line:
             continue
         m = HEADING.match(line)
-        if m and (len(line) < 140 or m.group(1).count(".") > 0):
+        table_row_heading = bool(
+            re.match(r"^\d+\s*[–-]\s*\d+\b", line)
+            and len(re.findall(r"\d+", line)) >= 3
+        )
+        if m and not table_row_heading and (len(line) < 140 or m.group(1).count(".") > 0):
             if current and current.text.strip():
                 sections.append(current)
             current = Section(m.group(1) + " " + m.group(2), "", pages[i] if pages and i < len(pages) else None, m.group(1))

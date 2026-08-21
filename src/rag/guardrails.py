@@ -110,6 +110,63 @@ def _evidence_units(item) -> list[list[str]]:
     return [_tokens(f"{prefix} {body}")]
 
 
+def _selected_concepts(query: str, corpus, term_count: int) -> list[str]:
+    query_tokens = re.findall(r"[a-z0-9]+", query.lower())
+    terms = [
+        _stem(token)
+        for token in query_tokens
+        if (
+            token not in STOP_WORDS
+            and len(token) >= 3
+            and not token.isdigit()
+            and _stem(token) not in ANSWER_HEADS
+        )
+    ]
+    if not terms or not corpus:
+        return []
+    corpus_terms = set(_tokens(" ".join(
+        f"{_body(item)} {item.filename} "
+        f"{item.chunk.doc_title if hasattr(item, 'chunk') else item.doc_title} "
+        f"{item.section_path}"
+        for item in corpus
+    )))
+
+    def canonical(term: str) -> str:
+        if term in corpus_terms:
+            return term
+        matches = sorted(candidate for candidate in corpus_terms
+                         if _term_matches(term, candidate))
+        return matches[0] if matches else term
+
+    corpus_documents = [_tokens(
+        f"{item.filename} "
+        f"{item.chunk.doc_title if hasattr(item, 'chunk') else item.doc_title} "
+        f"{item.section_path} {_body(item)}"
+    ) for item in corpus]
+    idf = {
+        term: 1.0 + len(corpus_documents) / max(
+            1,
+            sum(canonical(term) in set(tokens) for tokens in corpus_documents),
+        )
+        for term in set(terms)
+    }
+    selected = sorted(
+        dict.fromkeys(terms),
+        key=lambda term: -idf.get(term, 0.0),
+    )[:max(1, term_count)]
+    return selected
+
+
+def _query_entities(query: str) -> list[str]:
+    return [
+        _stem(token.casefold())
+        for token in re.findall(r"[A-Za-z0-9]+", query)
+        if token[0].isupper()
+        and len(token) >= 3
+        and token.casefold() not in STOP_WORDS
+    ]
+
+
 def scrub(text: str) -> str:
     text = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[redacted-email]", text)
     return re.sub(r"(?i)(ignore (?:all )?previous instructions|system prompt)", "[redacted]", text)
@@ -188,36 +245,7 @@ def has_sufficient_evidence(
         )
 
     document_terms = [_evidence_units(item) for item in items]
-    def canonical(term: str) -> str:
-        if term in corpus_terms:
-            return term
-        matches = sorted(candidate for candidate in corpus_terms
-                         if _term_matches(term, candidate))
-        return matches[0] if matches else term
-
-    document_frequency = {}
-    for term in set(terms):
-        corpus_term = canonical(term)
-        document_frequency[term] = sum(
-            any(corpus_term in set(unit) for unit in units)
-            for units in document_terms
-        )
-    corpus_documents = [_tokens(f"{x.section_path} {_body(x)}") for x in corpus]
-    corpus_frequency = {
-        term: sum(canonical(term) in set(tokens) for tokens in corpus_documents)
-        for term in set(terms)
-    }
-    total_docs = max(1, len(corpus_documents))
-    idf = {
-        term: (1.0 + (total_docs / max(1, corpus_frequency.get(term, 0))))
-        for term in terms
-    }
-    selected = sorted(
-        enumerate(dict.fromkeys(terms)),
-        key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
-    )[:max(1, term_count)]
-    selected_positions = sorted(position for position, _ in selected)
-    ordered = [terms[position] for position in selected_positions]
+    ordered = _selected_concepts(query, corpus, term_count)
 
     def cooccurs(selected_terms: list[str]) -> bool:
         return any(
@@ -240,47 +268,6 @@ def has_sufficient_evidence(
             for term in tokens
         )
     found = cooccurs(ordered)
-    value_query = bool(re.search(
-        r"\b(?:how much|how many|price|cost|amount|maximum|rate|approval|approve|required)\b"
-        r"|\$\s*\d",
-        query,
-        re.I,
-    ))
-    if not found and term_count == 2 and value_query:
-        ranked_terms = [
-            term for _, term in sorted(
-                enumerate(dict.fromkeys(terms)),
-                key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
-            )
-        ]
-        for index, left in enumerate(ranked_terms):
-            for right in ranked_terms[index + 1:]:
-                if cooccurs([left, right]):
-                    ordered = [left, right]
-                    found = True
-                    break
-            if found:
-                break
-    named_terms = [
-        _stem(token)
-        for index, token in enumerate(re.findall(r"[A-Za-z0-9]+", query))
-        if index > 0 and token[0].isupper() and len(token) >= 3
-    ]
-    if named_terms and re.search(r"\b(?:tier|plan)\b", query, re.I):
-        value_pattern = re.compile(r"\$|%|\b\d+(?:\.\d+)?\b")
-        named_evidence = any(
-            all(
-                any(
-                    _term_matches(named, value)
-                    for value in _tokens(_body(item))
-                )
-                for named in named_terms
-            )
-            and bool(value_pattern.search(_body(item)))
-            and bool(re.search(r"\b(?:tiers?|plans?)\b", item.section_path, re.I))
-            for item in items
-        )
-        found = found and named_evidence
     return found
 
 
@@ -295,7 +282,14 @@ def confidence(query: str, items) -> float:
     return max(0.0, min(1.0, 0.55 * top + 0.25 * margin + 0.20 * coverage))
 
 
-def validate_citations_and_numbers(text: str, citations, context) -> bool:
+def validate_citations_and_numbers(
+    text: str,
+    citations,
+    context,
+    query: str | None = None,
+    corpus=None,
+    term_count: int = 2,
+) -> bool:
     """Ensure references resolve and every asserted numeric token is grounded."""
     citation_ids = {citation.chunk_id for citation in citations}
     context_by_id = {item.chunk_id: item for item in context}
@@ -306,10 +300,27 @@ def validate_citations_and_numbers(text: str, citations, context) -> bool:
     if any(citation_by_number[number].chunk_id not in citation_ids for number in references):
         return False
     cited_text = " ".join(
-        context_by_id[citation_by_number[number].chunk_id].content.lower()
+        (
+            f"{context_by_id[citation_by_number[number].chunk_id].filename} "
+            f"{context_by_id[citation_by_number[number].chunk_id].chunk.doc_title} "
+            f"{context_by_id[citation_by_number[number].chunk_id].section_path} "
+            f"{context_by_id[citation_by_number[number].chunk_id].content}"
+        ).lower()
         for number in references
         if citation_by_number[number].chunk_id in context_by_id
     )
+    if query and corpus:
+        concepts = _selected_concepts(query, corpus, term_count)
+        concepts.extend(
+            entity for entity in _query_entities(query)
+            if entity not in concepts
+        )
+        cited_tokens = _tokens(cited_text)
+        if any(
+            not any(_term_matches(concept, token) for token in cited_tokens)
+            for concept in concepts
+        ):
+            return False
     stripped = re.sub(r"\[\d+\]", "", text)
     asserted = re.findall(r"\$?\d+(?:,\d{3})*(?:\.\d+)?%?", stripped)
     return all(token.lower().replace(",", "") in cited_text.replace(",", "") for token in asserted)
