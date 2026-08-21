@@ -13,6 +13,8 @@ def _value(text: str, *labels: str) -> str | None:
 
 
 def enrich_documents(documents: list[Document]) -> list[Document]:
+    from .config import get_config
+    acl_map = get_config().acl_map
     for d in documents:
         # Parsing puts the document header into the first section.
         header = d.sections[0].text[:1500] if d.sections else ""
@@ -24,7 +26,7 @@ def enrich_documents(documents: list[Document]) -> list[Document]:
         family = re.sub(r"\b(rate card|version|v\d+(?:\.\d+)*)\b", "", family, flags=re.I)
         d.doc_family = re.sub(r"[^a-z0-9]+", "_", family.lower()).strip("_")
         d.doc_type = d.filename.rsplit(".", 1)[-1].lower()
-        d.security_groups = [d.department.lower(), "all-staff"]
+        d.security_groups = list(acl_map.get(d.department, [d.department.lower()]))
     groups: dict[str, list[Document]] = {}
     for d in documents:
         groups.setdefault(d.doc_family, []).append(d)

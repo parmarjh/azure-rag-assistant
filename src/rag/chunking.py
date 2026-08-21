@@ -32,7 +32,12 @@ def baseline_chunks(doc: Document, size: int = 1000) -> list[Chunk]:
             for n, i in enumerate(range(0, len(text), size))]
 
 
-def improved_chunks(doc: Document, target: int = 350, overlap: int = 80) -> list[Chunk]:
+def improved_chunks(
+    doc: Document,
+    target: int = 350,
+    overlap: int = 80,
+    with_header: bool = True,
+) -> list[Chunk]:
     result: list[Chunk] = []
     n = 0
     for section in doc.sections:
@@ -45,6 +50,6 @@ def improved_chunks(doc: Document, target: int = 350, overlap: int = 80) -> list
             step = max(1, target - overlap)
             windows = [words[i:i + target] for i in range(0, len(words), step)]
         for window in windows:
-            result.append(_make(doc, " ".join(window), section, n, True))
+            result.append(_make(doc, " ".join(window), section, n, with_header))
             n += 1
     return result

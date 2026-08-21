@@ -123,6 +123,8 @@ class AzureSearchIndex:
 
     def search(self, query, vector, filters, top_k):
         kwargs = {"search_text": query, "top": top_k}
+        if query:
+            kwargs.update(query_type="semantic", semantic_configuration_name="default")
         if vector:
             kwargs["vector_queries"] = [self._vector_query(
                 vector=vector, k_nearest_neighbors=top_k, fields="content_vector")]
@@ -155,7 +157,8 @@ class AzureSearchIndex:
                     token_count=data.get("token_count", 0), keywords=data.get("keywords", []),
                     header=data.get("header", ""), content=data["content"],
                     embedding=data.get("content_vector", []))
-                output.append(Retrieved(chunk, float(row.get("@search.score", 0))))
+                score = row.get("@search.reranker_score", row.get("@search.score", 0))
+                output.append(Retrieved(chunk, float(score or 0)))
             except KeyError:
                 continue
         return output
