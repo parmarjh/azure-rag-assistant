@@ -29,7 +29,7 @@ class RagConfig:
     rerank_threshold: float = 0.10
     abstain_threshold: float = 0.19
     evidence_pair_fraction: float = 0.50
-    evidence_term_count: int = 3
+    evidence_term_count: int = 2
     evidence_pair_window: int = 10
     enable_guardrails: bool = True
     enable_clarification: bool = True

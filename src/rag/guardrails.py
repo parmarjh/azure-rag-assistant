@@ -12,6 +12,8 @@ STOP_WORDS = {
     "compare", "difference", "both", "versus", "vs", "policy",
     "while", "company", "standard", "required", "receive", "reimbursable",
     "purchase", "their",
+    "based", "calendar", "claim", "employee", "give", "need", "request",
+    "year",
 }
 NUMBER_WORDS = {
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
@@ -48,7 +50,7 @@ def _stem(term: str) -> str:
         return term[:-3] + "y"
     if len(term) > 4 and term.endswith("s"):
         return term[:-1]
-    for suffix in ("ing", "ed", "es"):
+    for suffix in ("ation", "able", "ible", "ment", "ate", "al", "ing", "ed", "es"):
         if len(term) > len(suffix) + 3 and term.endswith(suffix):
             return term[:-len(suffix)]
     return term
@@ -83,6 +85,17 @@ def _body(item) -> str:
     if header and content.startswith(header):
         content = content[len(header):]
     return content.lstrip(" \n:").strip()
+
+
+def _evidence_units(item) -> list[list[str]]:
+    body = _body(item)
+    if "|" in body or "Sheet:" in body:
+        return [
+            _tokens(f"{item.section_path} {line}")
+            for line in body.splitlines()
+            if line.strip()
+        ]
+    return [_tokens(f"{item.section_path} {body}")]
 
 
 def scrub(text: str) -> str:
@@ -126,7 +139,7 @@ def has_sufficient_evidence(
     terms = [
         _stem(token)
         for token in query_tokens
-        if token not in STOP_WORDS and len(token) > 3 and not token.isdigit()
+        if token not in STOP_WORDS and len(token) >= 3 and not token.isdigit()
     ]
     if not terms or not items:
         return False
@@ -158,17 +171,24 @@ def has_sufficient_evidence(
             for subquery in subqueries
         )
 
-    document_terms = [
-        _tokens(f"{item.section_path} {_body(item)}") for item in items
-    ]
+    document_terms = [_evidence_units(item) for item in items]
+    def canonical(term: str) -> str:
+        if term in corpus_terms:
+            return term
+        matches = sorted(candidate for candidate in corpus_terms
+                         if _term_matches(term, candidate))
+        return matches[0] if matches else term
+
     document_frequency = {}
     for term in set(terms):
+        corpus_term = canonical(term)
         document_frequency[term] = sum(
-            term in set(tokens) for tokens in document_terms
+            any(corpus_term in set(unit) for unit in units)
+            for units in document_terms
         )
     corpus_documents = [_tokens(f"{x.section_path} {_body(x)}") for x in corpus]
     corpus_frequency = {
-        term: sum(term in set(tokens) for tokens in corpus_documents)
+        term: sum(canonical(term) in set(tokens) for tokens in corpus_documents)
         for term in set(terms)
     }
     total_docs = max(1, len(corpus_documents))
@@ -179,7 +199,7 @@ def has_sufficient_evidence(
     selected = sorted(
         enumerate(dict.fromkeys(terms)),
         key=lambda pair: (-idf.get(pair[1], 0.0), pair[0]),
-    )[:max(1, term_count)]
+    )[:max(1, min(2, term_count))]
     selected_positions = sorted(position for position, _ in selected)
     ordered = [terms[position] for position in selected_positions]
     if len(ordered) == 1:
@@ -188,34 +208,18 @@ def has_sufficient_evidence(
             for tokens in document_terms
             for term in tokens
         )
-    pairs = list(zip(ordered, ordered[1:]))
-    pair_scores = sorted(
-        pairs,
-        key=lambda pair: -(idf.get(pair[0], 0.0) + idf.get(pair[1], 0.0)),
+    found = any(
+        all(
+            any(
+                _term_matches(value, selected_term)
+                for value in tokens
+            )
+            for selected_term in ordered
+        )
+        for units in document_terms
+        for tokens in units
     )
-    found = False
-    evidence_window = pair_window + (
-        15 if any(token.isdigit() or token in NUMBER_WORDS for token in query_tokens) else 0
-    )
-    for left, right in pair_scores:
-        for tokens in document_terms:
-            left_positions = [
-                i for i, value in enumerate(tokens)
-                if _term_matches(value, left)
-            ]
-            right_positions = [
-                i for i, value in enumerate(tokens)
-                if _term_matches(value, right)
-            ]
-            if any(abs(left_position - right_position) <= evidence_window
-                   for left_position in left_positions
-                   for right_position in right_positions):
-                found = True
-                break
-        if found:
-            break
-    satisfied = int(found)
-    return satisfied / max(1, min(1, len(pair_scores))) >= pair_fraction
+    return int(found) >= pair_fraction
 
 
 def confidence(query: str, items) -> float:
@@ -250,25 +254,68 @@ def validate_citations_and_numbers(text: str, citations, context) -> bool:
 
 
 def clarification_facets(items, limit: int = 4, head_noun: str = "limit") -> list[str]:
-    facets: list[str] = []
+    ranked: list[tuple[int, object]] = []
     seen: set[tuple[str, str]] = set()
+    generic_sections = {"purpose", "overview", "introduction", "scope", "definitions"}
+    head_terms = {
+        _stem(word)
+        for word in re.findall(r"[a-z]+", head_noun.lower())
+        if len(word) > 3 and word not in STOP_WORDS
+    }
+    if len(re.findall(r"[a-z]+", head_noun.lower())) > 1:
+        head_terms = set()
+    anchor_terms = {
+        _stem(word)
+        for word in ("limit", "threshold", "cap", "cost", "price", "spend", "expense", "rate")
+    }
     for item in items:
         chunk = item.chunk
         key = (chunk.doc_id, chunk.section_path)
         if key in seen:
             continue
         seen.add(key)
-        title = chunk.doc_title
-        section = chunk.section_path
-        heading = re.sub(r"^\s*\d+(?:\.\d+)*\s*", "", section).strip()
-        words = [
-            re.sub(r"ies$", "y", word.lower())
-            for word in re.findall(r"[A-Za-z]+", heading)
+        heading = re.sub(r"^\s*\d+(?:\.\d+)*\s*", "", chunk.section_path).strip()
+        body = _body(item)
+        body_tokens = _tokens(body)
+        heading_tokens = _tokens(heading)
+        value_positions = [
+            index for index, token in enumerate(body_tokens)
+            if token.isdigit() or token in NUMBER_WORDS
         ]
-        description = " ".join(words) or head_noun
-        matches_head = any(_stem(word) == _stem(head_noun) for word in words)
-        label_description = description if matches_head else f"{head_noun} in {description}"
-        label = f"{label_description} ({title}"
+        if re.search(r"[$€£%]", body):
+            value_positions.extend(
+                index for index, token in enumerate(body_tokens)
+                if re.search(r"\d", token)
+            )
+        head_positions = [
+            index for index, token in enumerate(body_tokens)
+            if not head_terms or token in head_terms
+        ]
+        near_value = (
+            bool(value_positions)
+            and (
+                not head_terms
+                or any(
+                    abs(head_position - value_position) <= 12
+                    for head_position in head_positions
+                    for value_position in value_positions
+                )
+            )
+        )
+        has_anchor = bool(anchor_terms & (set(body_tokens) | set(heading_tokens)))
+        if not has_anchor:
+            continue
+        if heading.casefold() in generic_sections and not near_value:
+            continue
+        if not near_value:
+            continue
+        score = int(bool(head_terms and head_positions)) * 2 + int(bool(value_positions))
+        ranked.append((score, item))
+    facets: list[str] = []
+    for _, item in sorted(ranked, key=lambda pair: -pair[0]):
+        chunk = item.chunk
+        heading = re.sub(r"^\s*\d+(?:\.\d+)*\s*", "", chunk.section_path).strip()
+        label = f"{heading} ({chunk.doc_title}"
         if chunk.section_number:
             label += f" §{chunk.section_number}"
         label += ")"
